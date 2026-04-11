@@ -602,4 +602,32 @@ h3 {
     .auth-card {
         padding: 1.5rem;
     }
+
+   .logout-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    margin-left: 0.5rem;
+    border-radius: 50%;
+    transition: var(--transition);
 }
+
+.logout-btn:hover {
+    background: var(--neutral-light);
+    color: var(--primary-deep);
+}
+
+
+
+
+
+
+   
+}
+
+
+
+
