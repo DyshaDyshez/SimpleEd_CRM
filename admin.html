@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SimpleEd — Админ-панель</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div id="app" class="admin-app">
+        <aside class="sidebar">
+            <div class="logo">
+                <i class="fas fa-graduation-cap"></i>
+                <span>SimpleEd Admin</span>
+            </div>
+            <nav>
+                <a href="#" class="active" data-tab="teachers"><i class="fas fa-users"></i> Преподаватели</a>
+                <a href="#" data-tab="stats"><i class="fas fa-chart-bar"></i> Статистика</a>
+                <a href="#" data-tab="settings"><i class="fas fa-cog"></i> Настройки</a>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="backToCrmBtn"><i class="fas fa-arrow-left"></i> В CRM</button>
+                <button id="logoutAdminBtn"><i class="fas fa-sign-out-alt"></i> Выход</button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header>
+                <h1>Панель администратора</h1>
+                <div class="user-profile">
+                    <span id="adminNameDisplay">Админ</span>
+                    <div class="avatar" id="adminAvatar">A</div>
+                </div>
+            </header>
+
+            <!-- Вкладка "Преподаватели" -->
+            <section id="teachersTab" class="tab-content active">
+                <div class="card">
+                    <div class="card-header">
+                        <h2><i class="fas fa-chalkboard-user"></i> Список преподавателей</h2>
+                        <button class="btn-primary" id="addTeacherBtn"><i class="fas fa-plus"></i> Добавить учителя</button>
+                    </div>
+                    
+                    <!-- Форма добавления (скрыта по умолчанию) -->
+                    <div id="addTeacherForm" class="form-card hidden">
+                        <h3>Новый преподаватель</h3>
+                        <form id="newTeacherForm">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Email (логин) *</label>
+                                    <input type="email" id="newEmail" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Имя *</label>
+                                    <input type="text" id="newName" required>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Пароль *</label>
+                                    <input type="text" id="newPassword" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Тариф</label>
+                                    <select id="newPlan">
+                                        <option value="trial">Trial (14 дней)</option>
+                                        <option value="pro">Pro</option>
+                                        <option value="vip">VIP</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Доступ до</label>
+                                    <input type="date" id="newAccessUntil">
+                                </div>
+                            </div>
+                            <div class="form-actions">
+                                <button type="submit" class="btn-success"><i class="fas fa-save"></i> Создать</button>
+                                <button type="button" class="btn-secondary" id="cancelAddBtn">Отмена</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Таблица учителей -->
+                    <div class="table-responsive">
+                        <table id="teachersTable">
+                            <thead>
+                                <tr>
+                                    <th>Имя</th>
+                                    <th>Email (логин)</th>
+                                    <th>Пароль</th>
+                                    <th>Тариф</th>
+                                    <th>Доступ до</th>
+                                    <th>Статус</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody id="teachersTableBody">
+                                <tr><td colspan="7">Загрузка...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Вкладка "Статистика" (заглушка) -->
+            <section id="statsTab" class="tab-content">
+                <div class="card">
+                    <h2>Общая статистика</h2>
+                    <p>Здесь будет график доходов, активных учителей и т.д.</p>
+                </div>
+            </section>
+
+            <!-- Вкладка "Настройки" (заглушка) -->
+            <section id="settingsTab" class="tab-content">
+                <div class="card">
+                    <h2>Настройки платформы</h2>
+                    <p>Управление тарифами, уведомлениями и т.д.</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <script src="admin.js"></script>
+</body>
+</html>
