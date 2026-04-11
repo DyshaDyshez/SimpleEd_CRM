@@ -1,23 +1,11 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    
-
-
-    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SimpleEd CRM — Панель управления</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-
-
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="config.js"></script>
-<script src="session-check.js"></script>
-
-
-
 </head>
 <body>
     <div id="app">
@@ -27,10 +15,10 @@
                 <span>SimpleEd</span>
             </div>
             <nav>
-                <a href="#" class="active"><i class="fas fa-home"></i> Главная</a>
-                <a href="#"><i class="fas fa-users"></i> Ученики</a>
-                <a href="#"><i class="fas fa-wallet"></i> Финансы</a>
-                <a href="#"><i class="fas fa-sticky-note"></i> Заметки</a>
+                <a href="#" class="active" data-page="home"><i class="fas fa-home"></i> Главная</a>
+                <a href="#" data-page="students"><i class="fas fa-users"></i> Ученики</a>
+                <a href="#" data-page="finance"><i class="fas fa-wallet"></i> Финансы</a>
+                <a href="#" data-page="notes"><i class="fas fa-sticky-note"></i> Заметки</a>
             </nav>
             <div class="sidebar-footer">
                 <button id="supportBtn"><i class="fas fa-headset"></i> Поддержка</button>
@@ -39,53 +27,25 @@
 
         <main class="main-content">
             <header>
-                <h1>Сегодня, 10 апреля</h1>
+                <h1>Сегодня, <span id="currentDate"></span></h1>
                 <div class="user-profile">
-                    <span>Привет, Андрей!</span>
-                    <div class="avatar">А</div>
+                    <span id="teacherNameDisplay">Загрузка...</span>
+                    <div class="avatar" id="userAvatar">У</div>
+                    <button id="logoutBtn" class="logout-btn" title="Выйти"><i class="fas fa-sign-out-alt"></i></button>
                 </div>
             </header>
 
-            <section class="dashboard-grid">
-                <div class="card wide">
-                    <h3><i class="fas fa-calendar-day"></i> Ближайшие уроки</h3>
-                    <div class="lesson-list">
-                        <div class="lesson-item group">
-                            <div class="time">14:00</div>
-                            <div class="info">
-                                <strong>Группа: Minecraft [4/6]</strong>
-                                <span>Предмет: Vibe-coding</span>
-                            </div>
-                            <button class="btn-sm">Подготовиться</button>
-                        </div>
-                        <div class="lesson-item individual">
-                            <div class="time shadow">16:30</div>
-                            <div class="info">
-                                <strong>Глеб (15 лет)</strong>
-                                <span>Предмет: Python</span>
-                            </div>
-                            <button class="btn-sm">Подготовиться</button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card stat-card">
-                    <h3>Статистика апреля</h3>
-                    <div class="stat-value">42 <span>урока</span></div>
-                    <div class="stat-money">184 000 ₽</div>
-                </div>
-
-                <div class="card note-card">
-                    <h3>Быстрая заметка</h3>
-                    <textarea placeholder="Запишите идею..."></textarea>
-                    <button class="btn-save">Сохранить</button>
-                </div>
+            <section class="dashboard-grid" id="dashboardContent">
+                <!-- Динамический контент будет загружаться через JS -->
+                <div class="loader">Загрузка данных...</div>
             </section>
         </main>
     </div>
 
-
-
- 
+    <!-- Скрипты -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <script src="session-check.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
