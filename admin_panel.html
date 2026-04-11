@@ -7,14 +7,13 @@
     <link rel="stylesheet" href="style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        /* Расширенные стили для админки */
+        /* === СТИЛИ АДМИН‑ПАНЕЛИ === */
         .admin-app .main-content { padding: 2rem; }
         .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
         .btn-primary { background: #D4A373; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; font-weight: 600; cursor: pointer; }
         .btn-primary:hover { background: #B8835E; }
         .btn-success { background: #5B8C6F; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; }
         .btn-warning { background: #E9C46A; color: #3D342B; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; }
-        .btn-danger { background: #d32f2f; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; }
         .btn-secondary { background: #E9E1D4; color: #3D342B; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; }
         .btn-icon { background: transparent; border: none; color: #7A6E62; font-size: 1rem; padding: 0.3rem 0.5rem; cursor: pointer; }
         .btn-icon:hover { color: #D4A373; }
@@ -30,7 +29,6 @@
         .badge.plan-trial { background: #E9E1D4; color: #5C4F42; }
         .badge.plan-pro { background: #D4A373; color: white; }
         .badge.plan-vip { background: #5C4F42; color: white; }
-        .badge.warning { background: #E9C46A; color: #3D342B; }
         .form-card { background: #FEFAE0; padding: 1.5rem; border-radius: 16px; margin-bottom: 2rem; border: 1px solid #E9E1D4; }
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
         .form-group label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.3rem; color: #7A6E62; }
@@ -87,7 +85,6 @@
                         </div>
                     </div>
 
-                    <!-- Форма добавления -->
                     <div id="addTeacherForm" class="form-card hidden">
                         <h3>Новый преподаватель</h3>
                         <form id="newTeacherForm">
@@ -111,7 +108,6 @@
                         </form>
                     </div>
 
-                    <!-- Таблица преподавателей -->
                     <div class="table-responsive">
                         <table id="teachersTable">
                             <thead><tr><th>Имя</th><th>Email</th><th>Тариф</th><th>Доступ до</th><th>Статус</th><th>Оплата до</th><th>Действия</th></tr></thead>
@@ -121,7 +117,6 @@
                 </div>
             </section>
 
-            <!-- Вкладка "Все оплаты" -->
             <section id="paymentsTab" class="tab-content">
                 <div class="card">
                     <div class="card-header"><h2>История оплат</h2></div>
@@ -134,13 +129,12 @@
                 </div>
             </section>
 
-            <!-- Заглушки -->
             <section id="statsTab" class="tab-content"><div class="card"><h2>Общая статистика</h2><p>Скоро</p></div></section>
             <section id="settingsTab" class="tab-content"><div class="card"><h2>Настройки</h2><p>Управление платформой</p></div></section>
         </main>
     </div>
 
-    <!-- Модальное окно карточки преподавателя -->
+    <!-- Модальное окно -->
     <div id="teacherModal" class="modal hidden">
         <div class="modal-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -161,9 +155,8 @@
             const adminData = JSON.parse(adminSession);
 
             const _supabase = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
-            let currentTeacherId = null;
 
-            // DOM-элементы
+            // DOM
             const teachersTbody = document.getElementById('teachersTableBody');
             const adminNameSpan = document.getElementById('adminNameDisplay');
             const adminAvatar = document.getElementById('adminAvatar');
@@ -184,7 +177,7 @@
             adminNameSpan.textContent = adminData.name || 'Администратор';
             adminAvatar.textContent = (adminData.name || 'A').charAt(0).toUpperCase();
 
-            // === ЗАГРУЗКА СПИСКА ПРЕПОДАВАТЕЛЕЙ ===
+            // Загрузка преподавателей
             async function loadTeachers() {
                 try {
                     const { data, error } = await _supabase
@@ -213,28 +206,23 @@
                             <td>${accessUntil ? accessUntil.toLocaleDateString('ru-RU') : '—'}</td>
                             <td><span class="badge ${statusClass}">${statusClass}</span></td>
                             <td>${paidUntil ? paidUntil.toLocaleDateString('ru-RU') : '—'} ${paymentWarning?'<i class="fas fa-exclamation-triangle" style="color:#d32f2f;"></i>':''}</td>
-                            <td>
-                                <button class="btn-icon view-card" data-id="${t.id}" title="Карточка"><i class="fas fa-id-card"></i></button>
-                            </td>
+                            <td><button class="btn-icon view-card" data-id="${t.id}" title="Карточка"><i class="fas fa-id-card"></i></button></td>
                         </tr>`;
                     }).join('');
 
-                    // Привязываем событие открытия карточки
                     document.querySelectorAll('.view-card').forEach(btn => {
                         btn.addEventListener('click', () => openTeacherCard(btn.dataset.id));
                     });
-
                 } catch (err) {
                     console.error(err);
                     teachersTbody.innerHTML = `<tr><td colspan="7">Ошибка загрузки</td></tr>`;
                 }
             }
 
-            // === ОТКРЫТИЕ КАРТОЧКИ ===
+            // Открытие карточки преподавателя
             async function openTeacherCard(teacherId) {
                 if (!modal) return;
                 
-                // Показываем модалку и индикатор загрузки
                 modal.classList.remove('hidden');
                 modalTeacherName.textContent = 'Загрузка...';
                 modalContent.innerHTML = '<p style="text-align:center; padding:2rem;">Загрузка данных...</p>';
@@ -247,7 +235,6 @@
                         .single();
                     if (profileError) throw profileError;
 
-                    // Параллельные запросы с защитой от ошибок
                     const [lessonsRes, studentsRes, paymentsRes, notesRes] = await Promise.allSettled([
                         _supabase.from('lessons').select('*', { count: 'exact', head: true }).eq('teacher_id', teacherId),
                         _supabase.from('students').select('*', { count: 'exact', head: true }).eq('teacher_id', teacherId),
@@ -309,61 +296,71 @@
                         <div style="margin-top:1rem;">${notes.length ? notes.map(n=>`<div><em>${n.created_at.slice(0,10)}</em>: ${n.note}</div>`).join('') : 'Нет заметок'}</div>
                     `;
 
-                    // Привязываем обработчики внутри карточки
+                    // Безопасное добавление обработчиков
                     const editForm = document.getElementById('editTeacherForm');
-                    if (editForm) editForm.onsubmit = async (e) => {
-                        e.preventDefault();
-                        const newPassword = document.getElementById('editPassword').value;
-                        const data = {
-                            teacher_name: document.getElementById('editName').value,
-                            email: document.getElementById('editEmail').value,
-                            subscription_plan: document.getElementById('editPlan').value,
-                            access_until: document.getElementById('editAccess').value,
-                            activity_status: document.getElementById('editStatus').value
+                    if (editForm) {
+                        editForm.onsubmit = async (e) => {
+                            e.preventDefault();
+                            const newPassword = document.getElementById('editPassword')?.value;
+                            const data = {
+                                teacher_name: document.getElementById('editName')?.value,
+                                email: document.getElementById('editEmail')?.value,
+                                subscription_plan: document.getElementById('editPlan')?.value,
+                                access_until: document.getElementById('editAccess')?.value,
+                                activity_status: document.getElementById('editStatus')?.value
+                            };
+                            const { error } = await _supabase.from('teacher_profiles').update(data).eq('id', teacherId);
+                            if (error) { alert('Ошибка: ' + error.message); return; }
+                            if (newPassword) {
+                                await _supabase.rpc('update_user_password', { user_email: data.email, new_password: newPassword });
+                            }
+                            alert('Сохранено');
+                            modal.classList.add('hidden');
+                            loadTeachers();
                         };
-                        const { error } = await _supabase.from('teacher_profiles').update(data).eq('id', teacherId);
-                        if (error) { alert('Ошибка: ' + error.message); return; }
-                        if (newPassword) {
-                            await _supabase.rpc('update_user_password', { user_email: data.email, new_password: newPassword });
-                        }
-                        alert('Сохранено');
-                        modal.classList.add('hidden');
-                        loadTeachers();
-                    };
+                    }
 
-                    document.getElementById('addPaymentBtn')?.addEventListener('click', () => {
-                        document.getElementById('addPaymentForm').classList.toggle('hidden');
-                    });
-                    document.getElementById('savePaymentBtn')?.addEventListener('click', async () => {
-                        const amount = document.getElementById('paymentAmount').value;
-                        const paidUntil = document.getElementById('paymentPaidUntil').value;
-                        const note = document.getElementById('paymentNote').value;
-                        if (!amount || !paidUntil) { alert('Введите сумму и дату'); return; }
-                        await _supabase.from('teacher_payments').insert({ teacher_id: teacherId, amount, paid_until: paidUntil, notes: note });
-                        openTeacherCard(teacherId);
-                        loadTeachers();
-                    });
-                    document.getElementById('saveNoteBtn')?.addEventListener('click', async () => {
-                        const note = document.getElementById('newNote').value;
-                        if (!note) return;
-                        await _supabase.from('teacher_notes').insert({ teacher_id: teacherId, note });
-                        openTeacherCard(teacherId);
-                    });
+                    const addPaymentBtn = document.getElementById('addPaymentBtn');
+                    const addPaymentForm = document.getElementById('addPaymentForm');
+                    if (addPaymentBtn && addPaymentForm) {
+                        addPaymentBtn.addEventListener('click', () => addPaymentForm.classList.toggle('hidden'));
+                    }
+
+                    const savePaymentBtn = document.getElementById('savePaymentBtn');
+                    if (savePaymentBtn) {
+                        savePaymentBtn.addEventListener('click', async () => {
+                            const amount = document.getElementById('paymentAmount')?.value;
+                            const paidUntil = document.getElementById('paymentPaidUntil')?.value;
+                            const note = document.getElementById('paymentNote')?.value;
+                            if (!amount || !paidUntil) { alert('Введите сумму и дату'); return; }
+                            await _supabase.from('teacher_payments').insert({ teacher_id: teacherId, amount, paid_until: paidUntil, notes: note });
+                            openTeacherCard(teacherId);
+                            loadTeachers();
+                        });
+                    }
+
+                    const saveNoteBtn = document.getElementById('saveNoteBtn');
+                    if (saveNoteBtn) {
+                        saveNoteBtn.addEventListener('click', async () => {
+                            const note = document.getElementById('newNote')?.value;
+                            if (!note) return;
+                            await _supabase.from('teacher_notes').insert({ teacher_id: teacherId, note });
+                            openTeacherCard(teacherId);
+                        });
+                    }
 
                 } catch (err) {
                     console.error(err);
-                    modalContent.innerHTML = `<p class="error-message">Ошибка загрузки данных: ${err.message}</p>`;
+                    modalContent.innerHTML = `<p class="error-message">Ошибка загрузки: ${err.message}</p>`;
                     modalTeacherName.textContent = 'Ошибка';
                 }
             }
 
-            // === ЗАКРЫТИЕ МОДАЛЬНОГО ОКНА ===
+            // Закрытие модалки
             if (closeModalBtn) closeModalBtn.onclick = () => modal.classList.add('hidden');
-            window.addEventListener('click', (e) => {
-                if (e.target === modal) modal.classList.add('hidden');
-            });
+            window.addEventListener('click', (e) => { if (e.target === modal) modal.classList.add('hidden'); });
 
-            // === НАПОМИНАНИЕ ОБ ОПЛАТЕ ===
+            // Напоминание об оплате
             remindBtn.onclick = async () => {
                 const { data, error } = await _supabase.from('teacher_profiles').select('*, teacher_payments(paid_until)');
                 if (error) { alert('Ошибка'); return; }
@@ -383,7 +380,7 @@
                 }
             };
 
-            // === ДОБАВЛЕНИЕ УЧИТЕЛЯ ===
+            // Добавление учителя
             newTeacherForm.onsubmit = async (e) => {
                 e.preventDefault();
                 const email = document.getElementById('newEmail').value;
@@ -408,7 +405,7 @@
                 loadTeachers();
             };
 
-            // === ИНТЕРФЕЙС ===
+            // Интерфейс
             addTeacherBtn.onclick = () => addFormDiv.classList.toggle('hidden');
             cancelAddBtn.onclick = () => { addFormDiv.classList.add('hidden'); formError.textContent = ''; };
             logoutBtn.onclick = () => { localStorage.removeItem('adminAuth'); window.location.href = 'admin_login.html'; };
@@ -431,7 +428,6 @@
                 allPaymentsBody.innerHTML = data?.map(p => `<tr><td>${p.payment_date}</td><td>${p.teacher_profiles?.teacher_name}</td><td>${p.amount}₽</td><td>${p.paid_until}</td><td>${p.notes||''}</td></tr>`).join('') || '<tr><td colspan="5">Нет оплат</td></tr>';
             }
 
-            // Старт
             loadTeachers();
         })();
     </script>
