@@ -141,7 +141,15 @@
     </div>
 
     <!-- Модальное окно карточки преподавателя -->
-    
+    <div id="teacherModal" class="modal hidden">
+        <div class="modal-card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2 id="modalTeacherName">Имя преподавателя</h2>
+                <button class="btn-icon" id="closeModalBtn"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="modalContent">Загрузка...</div>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
@@ -206,14 +214,16 @@
                             <td><span class="badge ${statusClass}">${statusClass}</span></td>
                             <td>${paidUntil ? paidUntil.toLocaleDateString('ru-RU') : '—'} ${paymentWarning?'<i class="fas fa-exclamation-triangle" style="color:#d32f2f;"></i>':''}</td>
                             <td>
-                                <button class="btn-icon" data-action="view" data-id="${t.id}" title="Карточка"><i class="fas fa-id-card"></i></button>
-                                <button class="btn-icon" data-action="edit" data-id="${t.id}" title="Редактировать"><i class="fas fa-edit"></i></button>
+                                <button class="btn-icon view-card" data-id="${t.id}" title="Карточка"><i class="fas fa-id-card"></i></button>
                             </td>
                         </tr>`;
                     }).join('');
 
-                    document.querySelectorAll('[data-action="view"]').forEach(b => b.addEventListener('click', () => openTeacherCard(b.dataset.id)));
-                    document.querySelectorAll('[data-action="edit"]').forEach(b => b.addEventListener('click', () => openTeacherCard(b.dataset.id)));
+                    // Привязываем событие открытия карточки
+                    document.querySelectorAll('.view-card').forEach(btn => {
+                        btn.addEventListener('click', () => openTeacherCard(btn.dataset.id));
+                    });
+
                 } catch (err) {
                     console.error(err);
                     teachersTbody.innerHTML = `<tr><td colspan="7">Ошибка загрузки</td></tr>`;
@@ -222,10 +232,12 @@
 
             // === ОТКРЫТИЕ КАРТОЧКИ ===
             async function openTeacherCard(teacherId) {
-                currentTeacherId = teacherId;
+                if (!modal) return;
+                
+                // Показываем модалку и индикатор загрузки
                 modal.classList.remove('hidden');
                 modalTeacherName.textContent = 'Загрузка...';
-                modalContent.innerHTML = '<p>Загрузка данных...</p>';
+                modalContent.innerHTML = '<p style="text-align:center; padding:2rem;">Загрузка данных...</p>';
 
                 try {
                     const { data: profile, error: profileError } = await _supabase
@@ -235,6 +247,7 @@
                         .single();
                     if (profileError) throw profileError;
 
+                    // Параллельные запросы с защитой от ошибок
                     const [lessonsRes, studentsRes, paymentsRes, notesRes] = await Promise.allSettled([
                         _supabase.from('lessons').select('*', { count: 'exact', head: true }).eq('teacher_id', teacherId),
                         _supabase.from('students').select('*', { count: 'exact', head: true }).eq('teacher_id', teacherId),
@@ -242,8 +255,8 @@
                         _supabase.from('teacher_notes').select('*').eq('teacher_id', teacherId).order('created_at', { ascending: false })
                     ]);
 
-                    const lessonsCount = lessonsRes.status === 'fulfilled' ? lessonsRes.value.count : 0;
-                    const studentsCount = studentsRes.status === 'fulfilled' ? studentsRes.value.count : 0;
+                    const lessonsCount = lessonsRes.status === 'fulfilled' ? lessonsRes.value.count : '?';
+                    const studentsCount = studentsRes.status === 'fulfilled' ? studentsRes.value.count : '?';
                     const payments = paymentsRes.status === 'fulfilled' ? paymentsRes.value.data : [];
                     const notes = notesRes.status === 'fulfilled' ? notesRes.value.data : [];
 
@@ -251,9 +264,9 @@
 
                     modalContent.innerHTML = `
                         <div class="stats-grid">
-                            <div class="stat-item"><div class="stat-value">${lessonsCount || 0}</div><div>уроков</div></div>
-                            <div class="stat-item"><div class="stat-value">${studentsCount || 0}</div><div>учеников</div></div>
-                            <div class="stat-item"><div class="stat-value">${payments.length || 0}</div><div>платежей</div></div>
+                            <div class="stat-item"><div class="stat-value">${lessonsCount}</div><div>уроков</div></div>
+                            <div class="stat-item"><div class="stat-value">${studentsCount}</div><div>учеников</div></div>
+                            <div class="stat-item"><div class="stat-value">${payments.length}</div><div>платежей</div></div>
                         </div>
                         <h3>Редактирование</h3>
                         <form id="editTeacherForm">
@@ -262,7 +275,7 @@
                                 <div class="form-group"><label>Email</label><input id="editEmail" value="${profile.email}"></div>
                             </div>
                             <div class="form-row">
-                                <div class="form-group"><label>Пароль</label><input id="editPassword" placeholder="Новый пароль" value="${profile.plain_password||''}"></div>
+                                <div class="form-group"><label>Пароль</label><input id="editPassword" placeholder="Оставить без изменений" value=""></div>
                                 <div class="form-group"><label>Тариф</label><select id="editPlan">
                                     <option ${profile.subscription_plan==='trial'?'selected':''}>trial</option>
                                     <option ${profile.subscription_plan==='pro'?'selected':''}>pro</option>
@@ -278,71 +291,77 @@
                                     <option ${profile.activity_status==='blocked'?'selected':''}>blocked</option>
                                 </select></div>
                             </div>
-                            <button type="submit" class="btn-success">Сохранить</button>
+                            <button type="submit" class="btn-success">Сохранить изменения</button>
                         </form>
                         <h3>Оплаты</h3>
                         <button class="btn-primary" id="addPaymentBtn"><i class="fas fa-plus"></i> Добавить оплату</button>
                         <div id="addPaymentForm" class="form-card hidden">
                             <div class="form-row"><input type="number" id="paymentAmount" placeholder="Сумма"><input type="date" id="paymentPaidUntil"></div>
                             <input type="text" id="paymentNote" placeholder="Заметка">
-                            <button class="btn-success" id="savePaymentBtn">Сохранить</button>
+                            <button class="btn-success" id="savePaymentBtn">Сохранить оплату</button>
                         </div>
                         <div class="payment-history">
-                            ${payments.length ? payments.map(p=>`<div>${p.payment_date} - ${p.amount}₽ до ${p.paid_until} (${p.notes||''})</div>`).join('') : 'Нет оплат'}
+                            ${payments.length ? payments.map(p=>`<div><strong>${p.payment_date}</strong> - ${p.amount}₽ до ${p.paid_until} (${p.notes||''})</div>`).join('') : 'Нет оплат'}
                         </div>
                         <h3>Заметки</h3>
-                        <textarea id="newNote" placeholder="Добавить заметку..."></textarea><button id="saveNoteBtn" class="btn-primary">Сохранить</button>
-                        <div>${notes.length ? notes.map(n=>`<div>${n.created_at.slice(0,10)}: ${n.note}</div>`).join('') : 'Нет заметок'}</div>
+                        <textarea id="newNote" placeholder="Добавить заметку..."></textarea>
+                        <button id="saveNoteBtn" class="btn-primary">Сохранить заметку</button>
+                        <div style="margin-top:1rem;">${notes.length ? notes.map(n=>`<div><em>${n.created_at.slice(0,10)}</em>: ${n.note}</div>`).join('') : 'Нет заметок'}</div>
                     `;
 
-                    // Обработчики внутри карточки
-                    document.getElementById('editTeacherForm').onsubmit = async (e) => { e.preventDefault(); await updateTeacher(teacherId); };
-                    document.getElementById('addPaymentBtn').onclick = () => document.getElementById('addPaymentForm').classList.toggle('hidden');
-                    document.getElementById('savePaymentBtn').onclick = () => addPayment(teacherId);
-                    document.getElementById('saveNoteBtn').onclick = () => addNote(teacherId);
+                    // Привязываем обработчики внутри карточки
+                    const editForm = document.getElementById('editTeacherForm');
+                    if (editForm) editForm.onsubmit = async (e) => {
+                        e.preventDefault();
+                        const newPassword = document.getElementById('editPassword').value;
+                        const data = {
+                            teacher_name: document.getElementById('editName').value,
+                            email: document.getElementById('editEmail').value,
+                            subscription_plan: document.getElementById('editPlan').value,
+                            access_until: document.getElementById('editAccess').value,
+                            activity_status: document.getElementById('editStatus').value
+                        };
+                        const { error } = await _supabase.from('teacher_profiles').update(data).eq('id', teacherId);
+                        if (error) { alert('Ошибка: ' + error.message); return; }
+                        if (newPassword) {
+                            await _supabase.rpc('update_user_password', { user_email: data.email, new_password: newPassword });
+                        }
+                        alert('Сохранено');
+                        modal.classList.add('hidden');
+                        loadTeachers();
+                    };
+
+                    document.getElementById('addPaymentBtn')?.addEventListener('click', () => {
+                        document.getElementById('addPaymentForm').classList.toggle('hidden');
+                    });
+                    document.getElementById('savePaymentBtn')?.addEventListener('click', async () => {
+                        const amount = document.getElementById('paymentAmount').value;
+                        const paidUntil = document.getElementById('paymentPaidUntil').value;
+                        const note = document.getElementById('paymentNote').value;
+                        if (!amount || !paidUntil) { alert('Введите сумму и дату'); return; }
+                        await _supabase.from('teacher_payments').insert({ teacher_id: teacherId, amount, paid_until: paidUntil, notes: note });
+                        openTeacherCard(teacherId);
+                        loadTeachers();
+                    });
+                    document.getElementById('saveNoteBtn')?.addEventListener('click', async () => {
+                        const note = document.getElementById('newNote').value;
+                        if (!note) return;
+                        await _supabase.from('teacher_notes').insert({ teacher_id: teacherId, note });
+                        openTeacherCard(teacherId);
+                    });
 
                 } catch (err) {
                     console.error(err);
-                    modalContent.innerHTML = `<p class="error-message">Ошибка загрузки: ${err.message}</p>`;
+                    modalContent.innerHTML = `<p class="error-message">Ошибка загрузки данных: ${err.message}</p>`;
                     modalTeacherName.textContent = 'Ошибка';
                 }
             }
 
-            async function updateTeacher(id) {
-                const data = {
-                    teacher_name: document.getElementById('editName').value,
-                    email: document.getElementById('editEmail').value,
-                    plain_password: document.getElementById('editPassword').value,
-                    subscription_plan: document.getElementById('editPlan').value,
-                    access_until: document.getElementById('editAccess').value,
-                    activity_status: document.getElementById('editStatus').value
-                };
-                const { error } = await _supabase.from('teacher_profiles').update(data).eq('id', id);
-                if (error) { alert('Ошибка: ' + error.message); return; }
-                if (data.plain_password) {
-                    await _supabase.rpc('update_user_password', { user_email: data.email, new_password: data.plain_password });
-                }
-                alert('Сохранено');
-                modal.classList.add('hidden');
-                loadTeachers();
-            }
-
-            async function addPayment(teacherId) {
-                const amount = document.getElementById('paymentAmount').value;
-                const paidUntil = document.getElementById('paymentPaidUntil').value;
-                const note = document.getElementById('paymentNote').value;
-                if (!amount || !paidUntil) { alert('Введите сумму и дату'); return; }
-                await _supabase.from('teacher_payments').insert({ teacher_id: teacherId, amount, paid_until: paidUntil, notes: note });
-                openTeacherCard(teacherId);
-                loadTeachers();
-            }
-
-            async function addNote(teacherId) {
-                const note = document.getElementById('newNote').value;
-                if (!note) return;
-                await _supabase.from('teacher_notes').insert({ teacher_id: teacherId, note });
-                openTeacherCard(teacherId);
-            }
+            // === ЗАКРЫТИЕ МОДАЛЬНОГО ОКНА ===
+            if (closeModalBtn) closeModalBtn.onclick = () => modal.classList.add('hidden');
+            window.addEventListener('click', (e) => {
+                if (e.target === modal) modal.classList.add('hidden');
+            });
 
             // === НАПОМИНАНИЕ ОБ ОПЛАТЕ ===
             remindBtn.onclick = async () => {
@@ -394,8 +413,6 @@
             cancelAddBtn.onclick = () => { addFormDiv.classList.add('hidden'); formError.textContent = ''; };
             logoutBtn.onclick = () => { localStorage.removeItem('adminAuth'); window.location.href = 'admin_login.html'; };
             backToCrmBtn.onclick = () => window.location.href = 'index.html';
-            closeModalBtn.onclick = () => modal.classList.add('hidden');
-            window.onclick = (e) => { if (e.target === modal) modal.classList.add('hidden'); };
 
             // Вкладки
             document.querySelectorAll('[data-tab]').forEach(t => t.onclick = (e) => {
