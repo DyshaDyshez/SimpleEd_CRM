@@ -1,4 +1,9 @@
-// Инициализация Supabase клиента
+// Проверяем, что конфиг загрузился
+if (typeof CONFIG === 'undefined') {
+    alert("Ошибка: Файл config.js не найден или не подключен!");
+}
+
+// Инициализация Supabase
 const supabase = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
 
 const loginForm = document.getElementById('loginForm');
@@ -7,24 +12,22 @@ if (loginForm) {
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         
-        const email = document.getElementById('phone').value; // Пока используем как логин
+        const email = document.getElementById('phone').value; // Твой логин (email) из Auth
         const password = document.getElementById('password').value;
 
-        // 1. Пытаемся войти
+        console.log("Попытка входа...", email);
+
         const { data, error } = await supabase.auth.signInWithPassword({
             email: email,
             password: password,
         });
 
         if (error) {
-            alert("Ошибка входа: " + error.message);
+            alert("Ошибка Supabase: " + error.message);
+            console.error(error);
         } else {
-            console.log("Успешный вход:", data);
-            
-            // 2. Проверяем, админ ли это (твой номер)
-            // Мы это сделаем чуть позже, когда создадим твой профиль
-            
-            window.location.href = 'index.html'; // Переходим в CRM
+            alert("Успешный вход!");
+            window.location.href = 'index.html';
         }
     });
 }

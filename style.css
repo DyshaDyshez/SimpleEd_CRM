@@ -1,4 +1,17 @@
 /* Стили для страницы входа */
+
+/* Прячем всё тело страницы по умолчанию */
+body {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+/* Показываем только когда проверка пройдена (добавим класс через JS) */
+body.authorized {
+    opacity: 1;
+}
+
+
 .auth-page {
     display: flex;
     justify-content: center;
