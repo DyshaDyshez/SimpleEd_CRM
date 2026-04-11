@@ -4,10 +4,269 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Вход в SimpleEd CRM</title>
-    <link rel="stylesheet" href="style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(145deg, #E9D8C8 0%, #D4C4B5 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1.5rem;
+        }
+
+        .auth-container {
+            width: 100%;
+            max-width: 420px;
+        }
+
+        .auth-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 24px;
+            box-shadow: 0 16px 32px rgba(60, 50, 40, 0.16);
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(4px);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .logo i {
+            font-size: 2rem;
+            color: #D4A373;
+        }
+
+        .logo span {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #5C4F42;
+        }
+
+        h2 {
+            margin-bottom: 0.5rem;
+            color: #5C4F42;
+        }
+
+        .auth-card p {
+            color: #7A6E62;
+            margin-bottom: 2rem;
+            font-size: 0.9rem;
+        }
+
+        .input-group {
+            text-align: left;
+            margin-bottom: 1.5rem;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #7A6E62;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            border: 1.5px solid #E9E1D4;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+            background: #FEFAE0;
+            color: #3D342B;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #D4A373;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(212, 163, 115, 0.15);
+        }
+
+        .input-group input::placeholder {
+            color: #A09387;
+            font-size: 0.9rem;
+        }
+
+        .btn-login {
+            width: 100%;
+            background: #D4A373;
+            color: white;
+            border: none;
+            padding: 0.875rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            box-shadow: 0 4px 12px rgba(60, 50, 40, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-login:hover {
+            background: #B8835E;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(60, 50, 40, 0.12);
+        }
+
+        .btn-login:active {
+            transform: translateY(0);
+            box-shadow: 0 4px 12px rgba(60, 50, 40, 0.08);
+        }
+
+        .btn-login:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .auth-footer {
+            margin-top: 1.5rem;
+        }
+
+        .auth-footer a {
+            color: #A09387;
+            font-size: 0.8rem;
+            text-decoration: none;
+            transition: color 0.25s ease;
+        }
+
+        .auth-footer a:hover {
+            color: #D4A373;
+            text-decoration: underline;
+        }
+
+        /* Модальное окно */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-card {
+            background: white;
+            border-radius: 24px;
+            padding: 2rem;
+            max-width: 450px;
+            width: 90%;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 1.3rem;
+            color: #3D342B;
+        }
+
+        .btn-icon {
+            background: transparent;
+            border: none;
+            color: #7A6E62;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 0.25rem;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+
+        .btn-icon:hover {
+            background: #F0EAE1;
+            color: #D4A373;
+        }
+
+        .modal-body p {
+            margin-bottom: 1rem;
+            color: #5C4F42;
+            line-height: 1.5;
+        }
+
+        .modal-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin-top: 2rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: 0.2s;
+            font-size: 0.95rem;
+        }
+
+        .btn-primary {
+            background: #D4A373;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #B8835E;
+        }
+
+        .btn-secondary {
+            background: #E9E1D4;
+            color: #3D342B;
+        }
+
+        .btn-secondary:hover {
+            background: #D4C9B8;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        #blockedTeacherName {
+            font-weight: 600;
+            color: #3D342B;
+        }
+
+        .error-message {
+            color: #d32f2f;
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+        }
+    </style>
 </head>
-<body class="auth-page">
+<body>
     <div class="auth-container">
         <div class="auth-card">
             <div class="logo">
@@ -24,9 +283,10 @@
                 </div>
                 <div class="input-group">
                     <label>Пароль</label>
-                    <input type="password" id="password" placeholder="xxxxxxxxx" required>
+                    <input type="password" id="password" placeholder="••••••••" required>
                 </div>
                 <button type="submit" class="btn-login">Войти в систему</button>
+                <div id="loginError" class="error-message"></div>
             </form>
             
             <div class="auth-footer">
@@ -35,8 +295,184 @@
         </div>
     </div>
 
+    <!-- Модальное окно блокировки -->
+    <div id="blockedModal" class="modal hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2><i class="fas fa-lock"></i> Доступ ограничен</h2>
+                <button class="btn-icon" id="closeBlockedModal"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <p>Здравствуйте, <span id="blockedTeacherName"></span>!</p>
+                <p>Ваш оплаченный период истёк или доступ был временно заблокирован.</p>
+                <p>Для восстановления доступа свяжитесь с техподдержкой.</p>
+                <div class="modal-actions">
+                    <button class="btn btn-primary" id="blockedSupportBtn">
+                        <i class="fas fa-envelope"></i> Написать в поддержку
+                    </button>
+                    <button class="btn btn-secondary" id="blockedLogoutBtn">
+                        <i class="fas fa-sign-out-alt"></i> Выйти
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="config.js"></script>
-    <script src="auth.js"></script>
+    <script>
+        // Конфигурация (замените на свои данные, если используется config.js)
+        const CONFIG = {
+            SUPABASE_URL: "https://yyohojhvayfcwiqrdiqf.supabase.co",
+            SUPABASE_KEY: "sb_publishable_DEAK6DWGz8_swJaVLKdrVA_h1c5_Glx"
+        };
+
+        const supabaseAuth = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
+
+        // Проверяем, не авторизован ли уже
+        async function checkAlreadyLoggedIn() {
+            const { data } = await supabaseAuth.auth.getUser();
+            if (data.user) {
+                await checkTeacherStatus(data.user.id, data.user.email);
+            }
+        }
+
+        // Проверка статуса учителя
+        async function checkTeacherStatus(userId, email) {
+            try {
+                const { data, error } = await supabaseAuth
+                    .from('teacher_profiles')
+                    .select('activity_status, access_until, teacher_name')
+                    .eq('id', userId)
+                    .single();
+
+                if (error) {
+                    console.error('Ошибка получения статуса:', error);
+                    window.location.href = 'index.html';
+                    return;
+                }
+
+                const now = new Date();
+                const accessUntil = data.access_until ? new Date(data.access_until) : null;
+                const isBlocked = data.activity_status === 'blocked';
+                const isInactive = data.activity_status === 'inactive';
+                const isExpired = accessUntil && accessUntil < now;
+
+                if (isBlocked || isInactive || isExpired) {
+                    showBlockedModal(data.teacher_name || 'Учитель', email);
+                } else {
+                    window.location.href = 'index.html';
+                }
+            } catch (err) {
+                console.error('Ошибка проверки статуса:', err);
+                window.location.href = 'index.html';
+            }
+        }
+
+        // Показать модальное окно блокировки
+        function showBlockedModal(teacherName, teacherEmail) {
+            const modal = document.getElementById('blockedModal');
+            const teacherNameSpan = document.getElementById('blockedTeacherName');
+            const supportBtn = document.getElementById('blockedSupportBtn');
+            const logoutBtn = document.getElementById('blockedLogoutBtn');
+
+            if (teacherNameSpan) teacherNameSpan.textContent = teacherName;
+            if (modal) modal.classList.remove('hidden');
+
+            // Обработчик кнопки поддержки (email)
+            if (supportBtn) {
+                // Удаляем старые обработчики
+                const newSupportBtn = supportBtn.cloneNode(true);
+                supportBtn.parentNode.replaceChild(newSupportBtn, supportBtn);
+                
+                newSupportBtn.addEventListener('click', () => {
+                    const subject = encodeURIComponent('Проблема с доступом к SimpleEd');
+                    const body = encodeURIComponent(
+                        `Здравствуйте, Андрей!\n\n` +
+                        `Мой email: ${teacherEmail}\n` +
+                        `Имя: ${teacherName}\n\n` +
+                        `Опишите проблему:\n\n` +
+                        `Со мной удобно связаться: `
+                    );
+                    window.location.href = `mailto:Andrew02563@gmail.com?subject=${subject}&body=${body}`;
+                });
+            }
+
+            // Обработчик кнопки выхода
+            if (logoutBtn) {
+                const newLogoutBtn = logoutBtn.cloneNode(true);
+                logoutBtn.parentNode.replaceChild(newLogoutBtn, logoutBtn);
+                newLogoutBtn.addEventListener('click', async () => {
+                    await supabaseAuth.auth.signOut();
+                    window.location.reload();
+                });
+            }
+        }
+
+        // Закрытие модалки
+        document.getElementById('closeBlockedModal')?.addEventListener('click', () => {
+            document.getElementById('blockedModal').classList.add('hidden');
+        });
+
+        window.addEventListener('click', (e) => {
+            const modal = document.getElementById('blockedModal');
+            if (e.target === modal) modal.classList.add('hidden');
+        });
+
+        // Обработка формы входа
+        const loginForm = document.getElementById('loginForm');
+        const loginError = document.getElementById('loginError');
+
+        if (loginForm) {
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                loginError.textContent = '';
+                
+                const email = document.getElementById('email').value.trim();
+                const password = document.getElementById('password').value;
+                
+                if (!email || !password) {
+                    loginError.textContent = 'Введите email и пароль';
+                    return;
+                }
+                
+                const submitBtn = loginForm.querySelector('button[type="submit"]');
+                const originalText = submitBtn.textContent;
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Вход...';
+                
+                try {
+                    const { data, error } = await supabaseAuth.auth.signInWithPassword({
+                        email: email,
+                        password: password,
+                    });
+                    
+                    if (error) {
+                        console.error('Ошибка входа:', error);
+                        loginError.textContent = 'Неверный email или пароль. Проверьте введённые данные.';
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = originalText;
+                    } else {
+                        // Успешный вход — проверяем статус
+                        await checkTeacherStatus(data.user.id, data.user.email);
+                    }
+                } catch (err) {
+                    console.error(err);
+                    loginError.textContent = 'Ошибка соединения. Попробуйте позже.';
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalText;
+                }
+            });
+        }
+
+        // Ссылка "Проблемы со входом?" также открывает модалку с поддержкой
+        document.getElementById('supportLink')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            // Показываем модальное окно с универсальным сообщением
+            showBlockedModal('пользователь', 'неизвестно');
+        });
+
+        // Проверяем при загрузке
+        checkAlreadyLoggedIn();
+    </script>
 </body>
 </html>

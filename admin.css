@@ -1,0 +1,302 @@
+/* ==========================================
+   SIMPLEED CRM — СТИЛИ АДМИН-ПАНЕЛИ
+   ========================================== */
+
+   .admin-app .main-content { 
+    padding: 2rem; 
+}
+
+.card { 
+    background: white; 
+    border-radius: 16px; 
+    padding: 1.5rem; 
+    box-shadow: 0 4px 12px rgba(0,0,0,0.04); 
+    margin-bottom: 2rem; 
+}
+
+.card-header { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    margin-bottom: 1.5rem; 
+    flex-wrap: wrap; 
+    gap: 1rem; 
+}
+
+.admin-app h2 { 
+    font-size: 1.5rem; 
+    margin: 0; 
+    color: #3D342B; 
+}
+
+.admin-app h3 { 
+    margin-top: 1.5rem; 
+    margin-bottom: 0.75rem; 
+    color: #3D342B; 
+}
+
+/* Кнопки */
+.btn { 
+    display: inline-flex; 
+    align-items: center; 
+    gap: 0.5rem; 
+    padding: 0.5rem 1rem; 
+    border-radius: 8px; 
+    font-weight: 500; 
+    cursor: pointer; 
+    border: none; 
+    transition: 0.2s; 
+}
+
+.btn-primary { 
+    background: #D4A373; 
+    color: white; 
+}
+.btn-primary:hover { 
+    background: #B8835E; 
+}
+
+.btn-success { 
+    background: #5B8C6F; 
+    color: white; 
+}
+.btn-success:hover { 
+    background: #4A6E58; 
+}
+
+.btn-warning { 
+    background: #E9C46A; 
+    color: #3D342B; 
+}
+.btn-warning:hover { 
+    background: #D4A952; 
+}
+
+.btn-secondary { 
+    background: #E9E1D4; 
+    color: #3D342B; 
+}
+.btn-secondary:hover { 
+    background: #D4C9B8; 
+}
+
+.btn-icon { 
+    background: transparent; 
+    border: none; 
+    color: #7A6E62; 
+    font-size: 1.1rem; 
+    cursor: pointer; 
+    padding: 0.25rem 0.5rem; 
+    border-radius: 6px; 
+}
+.btn-icon:hover { 
+    background: #F0EAE1; 
+    color: #D4A373; 
+}
+
+/* Таблицы */
+.table-responsive { 
+    overflow-x: auto; 
+    border-radius: 12px; 
+}
+
+.admin-app table { 
+    width: 100%; 
+    border-collapse: collapse; 
+    font-size: 0.9rem; 
+}
+
+.admin-app th, 
+.admin-app td { 
+    padding: 0.9rem 1rem; 
+    text-align: left; 
+    border-bottom: 1px solid #E9E1D4; 
+}
+
+.admin-app th { 
+    font-weight: 600; 
+    color: #7A6E62; 
+    text-transform: uppercase; 
+    font-size: 0.75rem; 
+    letter-spacing: 0.5px; 
+    background: #FEFAE0; 
+}
+
+.admin-app td { 
+    color: #3D342B; 
+}
+
+/* Бейджи */
+.badge { 
+    display: inline-block; 
+    padding: 0.2rem 0.7rem; 
+    border-radius: 20px; 
+    font-size: 0.7rem; 
+    font-weight: 600; 
+    text-transform: capitalize; 
+}
+
+.badge.active { 
+    background: #E1F0E0; 
+    color: #2C4C3B; 
+}
+
+.badge.inactive { 
+    background: #FEE4D4; 
+    color: #8B4E2C; 
+}
+
+.badge.blocked { 
+    background: #f8d7da; 
+    color: #721c24; 
+}
+
+.badge.vip { 
+    background: #5C4F42; 
+    color: white; 
+}
+
+.badge.plan-trial { 
+    background: #E9E1D4; 
+    color: #5C4F42; 
+}
+
+.badge.plan-pro { 
+    background: #D4A373; 
+    color: white; 
+}
+
+.badge.plan-vip { 
+    background: #5C4F42; 
+    color: white; 
+}
+
+/* Формы */
+.form-card { 
+    background: #FEFAE0; 
+    padding: 1.5rem; 
+    border-radius: 16px; 
+    margin-bottom: 2rem; 
+    border: 1px solid #E9E1D4; 
+}
+
+.form-grid { 
+    display: grid; 
+    grid-template-columns: 1fr 1fr; 
+    gap: 1rem; 
+}
+
+.form-group { 
+    margin-bottom: 1rem; 
+}
+
+.form-group label { 
+    display: block; 
+    font-size: 0.8rem; 
+    font-weight: 600; 
+    margin-bottom: 0.25rem; 
+    color: #7A6E62; 
+}
+
+.form-group input, 
+.form-group select, 
+.form-group textarea { 
+    width: 100%; 
+    padding: 0.6rem; 
+    border: 1px solid #E9E1D4; 
+    border-radius: 8px; 
+    background: white; 
+    font-size: 0.9rem; 
+}
+
+.form-actions { 
+    display: flex; 
+    gap: 1rem; 
+    margin-top: 1.5rem; 
+}
+
+.error-message { 
+    color: #d32f2f; 
+    margin-top: 0.5rem; 
+    font-size: 0.85rem; 
+}
+
+/* Модальное окно */
+.modal { 
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%; 
+    background: rgba(0,0,0,0.5); 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    z-index: 1000; 
+}
+
+.modal-card { 
+    background: white; 
+    border-radius: 24px; 
+    padding: 2rem; 
+    max-width: 800px; 
+    width: 90%; 
+    max-height: 85vh; 
+    overflow-y: auto; 
+    box-shadow: 0 20px 40px rgba(0,0,0,0.15); 
+}
+
+.modal-header { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    margin-bottom: 1.5rem; 
+}
+
+.stats-grid { 
+    display: grid; 
+    grid-template-columns: repeat(3,1fr); 
+    gap: 1rem; 
+    margin: 1.5rem 0; 
+}
+
+.stat-item { 
+    background: #FEFAE0; 
+    padding: 1rem; 
+    border-radius: 12px; 
+    text-align: center; 
+}
+
+.stat-value { 
+    font-size: 2rem; 
+    font-weight: 700; 
+    color: #5C4F42; 
+    line-height: 1.2; 
+}
+
+.stat-label { 
+    color: #7A6E62; 
+    font-size: 0.8rem; 
+}
+
+/* Табы */
+.tab-content { 
+    display: none; 
+}
+
+.tab-content.active { 
+    display: block; 
+}
+
+/* Утилиты */
+.hidden { 
+    display: none !important; 
+}
+
+.mt-2 { 
+    margin-top: 1rem; 
+}
+
+.mb-2 { 
+    margin-bottom: 1rem; 
+}
