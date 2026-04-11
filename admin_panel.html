@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SimpleEd — Админ-панель</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div id="app" class="admin-app">
+        <!-- Содержимое как в предыдущем admin.html -->
+        <aside class="sidebar">...</aside>
+        <main class="main-content">...</main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <script>
+        // Проверка авторизации админа
+        const adminSession = localStorage.getItem('adminAuth');
+        if (!adminSession) {
+            window.location.href = 'admin_login.html';
+        }
+
+        // Можно распарсить данные админа
+        const adminData = JSON.parse(adminSession);
+        document.getElementById('adminNameDisplay').textContent = adminData.name || 'Админ';
+
+        // Кнопка выхода
+        document.getElementById('logoutAdminBtn').addEventListener('click', () => {
+            localStorage.removeItem('adminAuth');
+            window.location.href = 'admin_login.html';
+        });
+
+        // Остальная логика загрузки учителей...
+    </script>
+    <!-- Подключаем основной admin.js, если нужно -->
+    <script src="admin.js"></script>
+</body>
+</html>
