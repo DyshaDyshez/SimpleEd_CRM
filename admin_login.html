@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Вход в админ-панель SimpleEd</title>
+    <title>Вход в админку SimpleEd</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
@@ -15,12 +15,12 @@
                 <span>SimpleEd Admin</span>
             </div>
             <h2>Вход для владельца</h2>
-            <p>Введите ваш email и пароль</p>
+            <p>Введите email и пароль</p>
             
             <form id="adminLoginForm">
                 <div class="input-group">
                     <label>Email</label>
-                    <input type="email" id="adminEmail" placeholder="admin@example.com" required>
+                    <input type="email" id="adminEmail" placeholder="Andrew02563@gmail.com" required>
                 </div>
                 <div class="input-group">
                     <label>Пароль</label>
@@ -28,15 +28,14 @@
                 </div>
                 <button type="submit" class="btn-login">Войти</button>
             </form>
-            <div id="loginError" class="error-message" style="color: #d32f2f; margin-top: 1rem;"></div>
+            <div id="loginError" style="color: #d32f2f; margin-top: 1rem;"></div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
     <script>
-        // Простая проверка входа админа
-        const supabase = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
+        const supabaseAdmin = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
         const form = document.getElementById('adminLoginForm');
         const errorDiv = document.getElementById('loginError');
 
@@ -45,8 +44,7 @@
             const email = document.getElementById('adminEmail').value.trim();
             const password = document.getElementById('adminPassword').value;
 
-            // Ищем админа по email и паролю
-            const { data, error } = await supabase
+            const { data, error } = await supabaseAdmin
                 .from('platform_admins')
                 .select('email, full_name, role')
                 .eq('email', email)
@@ -58,7 +56,6 @@
                 return;
             }
 
-            // Сохраняем сессию админа в localStorage
             localStorage.setItem('adminAuth', JSON.stringify({
                 email: data.email,
                 name: data.full_name,
@@ -66,7 +63,6 @@
                 loggedAt: new Date().toISOString()
             }));
 
-            // Перенаправляем в админ-панель
             window.location.href = 'admin_panel.html';
         });
     </script>
