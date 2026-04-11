@@ -1,26 +1,24 @@
-// Этот скрипт должен загружаться ПЕРВЫМ на всех закрытых страницах
+// Функция проверки сессии
 async function checkSession() {
-    const supabase = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
+    // 1. Инициализируем клиент внутри функции
+    const supabaseClient = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
     
-    // Получаем текущего пользователя
-    const { data: { user } } = await supabase.auth.getUser();
+    // 2. Получаем данные о сессии
+    const { data, error } = await supabaseClient.auth.getUser();
 
-    if (!user) {
-        // Если пользователя нет — выкидываем на страницу входа
+    // 3. Если произошла ошибка или пользователя нет в сессии
+    if (error || !data.user) {
+        console.log("Доступ запрещен. Перенаправление на вход...");
         window.location.href = 'auth.html';
     } else {
-        console.log("Доступ разрешен для:", user.email);
-        // Здесь можно сохранить данные пользователя в глобальную переменную, 
-        // чтобы использовать имя учителя в интерфейсе
-        window.currentUser = user;
+        // 4. Если всё хорошо
+        console.log("Доступ разрешен для:", data.user.email);
+        window.currentUser = data.user; // Сохраняем данные для дальнейшего использования
+        
+        // Показываем страницу (убираем прозрачность)
+        document.body.classList.add('authorized');
     }
 }
 
-if (!user) {
-    window.location.href = 'auth.html';
-} else {
-    document.body.classList.add('authorized');
-}
-
-// Запускаем проверку сразу
+// Запускаем
 checkSession();
