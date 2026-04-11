@@ -1,24 +1,26 @@
-// Функция проверки сессии
 async function checkSession() {
-    // 1. Инициализируем клиент внутри функции
+    // Проверяем, на какой странице мы находимся
+    const isAuthPage = window.location.pathname.includes('auth.html');
+
     const supabaseClient = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
-    
-    // 2. Получаем данные о сессии
     const { data, error } = await supabaseClient.auth.getUser();
 
-    // 3. Если произошла ошибка или пользователя нет в сессии
     if (error || !data.user) {
-        console.log("Доступ запрещен. Перенаправление на вход...");
-        window.location.href = 'auth.html';
+        // Если мы НЕ на странице входа и НЕ залогинены — отправляем на вход
+        if (!isAuthPage) {
+            window.location.href = 'auth.html';
+        }
     } else {
-        // 4. Если всё хорошо
-        console.log("Доступ разрешен для:", data.user.email);
-        window.currentUser = data.user; // Сохраняем данные для дальнейшего использования
-        
-        // Показываем страницу (убираем прозрачность)
-        document.body.classList.add('authorized');
+        // Если залогинены
+        if (isAuthPage) {
+            // Если залогиненный юзер зашел на страницу входа — кидаем его в CRM
+            window.location.href = 'index.html';
+        } else {
+            // Если на любой другой странице — показываем контент
+            document.body.classList.add('authorized');
+            window.currentUser = data.user;
+        }
     }
 }
 
-// Запускаем
 checkSession();
