@@ -6,36 +6,420 @@
     <title>SimpleEd — Админ-панель</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Дополнительные стили для админки, если не все есть в style.css */
+        .admin-app .main-content { padding: 2rem; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
+        .btn-primary { background: var(--primary-warm, #D4A373); color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; font-weight: 600; cursor: pointer; }
+        .btn-primary:hover { background: var(--primary-deep, #B8835E); }
+        .btn-success { background: #5B8C6F; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; }
+        .btn-secondary { background: #E9E1D4; color: #3D342B; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; }
+        .btn-icon { background: transparent; border: none; color: #7A6E62; font-size: 1rem; padding: 0.3rem 0.5rem; cursor: pointer; }
+        .btn-icon:hover { color: #D4A373; }
+        .table-responsive { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 0.8rem; text-align: left; border-bottom: 1px solid #E9E1D4; }
+        th { font-weight: 600; color: #7A6E62; font-size: 0.8rem; text-transform: uppercase; }
+        .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+        .badge.active { background: #E1F0E0; color: #2C4C3B; }
+        .badge.blocked { background: #FEE4D4; color: #8B4E2C; }
+        .badge.plan-trial { background: #E9E1D4; color: #5C4F42; }
+        .badge.plan-pro { background: #D4A373; color: white; }
+        .badge.plan-vip { background: #5C4F42; color: white; }
+        .form-card { background: #FEFAE0; padding: 1.5rem; border-radius: 16px; margin-bottom: 2rem; border: 1px solid #E9E1D4; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+        .form-group label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.3rem; color: #7A6E62; }
+        .form-group input, .form-group select { width: 100%; padding: 0.6rem; border: 1px solid #E9E1D4; border-radius: 8px; background: white; }
+        .form-actions { display: flex; gap: 1rem; margin-top: 1rem; }
+        .hidden { display: none; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .error-message { color: #d32f2f; margin-top: 0.5rem; }
+    </style>
 </head>
 <body>
     <div id="app" class="admin-app">
-        <!-- Содержимое как в предыдущем admin.html -->
-        <aside class="sidebar">...</aside>
-        <main class="main-content">...</main>
+        <aside class="sidebar">
+            <div class="logo">
+                <i class="fas fa-graduation-cap"></i>
+                <span>SimpleEd Admin</span>
+            </div>
+            <nav>
+                <a href="#" class="active" data-tab="teachers"><i class="fas fa-users"></i> Преподаватели</a>
+                <a href="#" data-tab="stats"><i class="fas fa-chart-bar"></i> Статистика</a>
+                <a href="#" data-tab="settings"><i class="fas fa-cog"></i> Настройки</a>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="backToCrmBtn" class="btn-secondary" style="width:100%; margin-bottom:0.5rem;"><i class="fas fa-arrow-left"></i> В CRM</button>
+                <button id="logoutAdminBtn" class="btn-secondary" style="width:100%;"><i class="fas fa-sign-out-alt"></i> Выход</button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header>
+                <h1>Панель администратора</h1>
+                <div class="user-profile">
+                    <span id="adminNameDisplay">Админ</span>
+                    <div class="avatar" id="adminAvatar">A</div>
+                </div>
+            </header>
+
+            <!-- Вкладка "Преподаватели" -->
+            <section id="teachersTab" class="tab-content active">
+                <div class="card">
+                    <div class="card-header">
+                        <h2><i class="fas fa-chalkboard-user"></i> Список преподавателей</h2>
+                        <button class="btn-primary" id="addTeacherBtn"><i class="fas fa-plus"></i> Добавить учителя</button>
+                    </div>
+                    
+                    <!-- Форма добавления -->
+                    <div id="addTeacherForm" class="form-card hidden">
+                        <h3>Новый преподаватель</h3>
+                        <form id="newTeacherForm">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Email (логин) *</label>
+                                    <input type="email" id="newEmail" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Имя *</label>
+                                    <input type="text" id="newName" required>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Пароль *</label>
+                                    <input type="text" id="newPassword" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Тариф</label>
+                                    <select id="newPlan">
+                                        <option value="trial">Trial (14 дней)</option>
+                                        <option value="pro">Pro</option>
+                                        <option value="vip">VIP</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Доступ до (оставьте пустым для авто)</label>
+                                    <input type="date" id="newAccessUntil">
+                                </div>
+                            </div>
+                            <div class="form-actions">
+                                <button type="submit" class="btn-success"><i class="fas fa-save"></i> Создать</button>
+                                <button type="button" class="btn-secondary" id="cancelAddBtn">Отмена</button>
+                            </div>
+                            <div id="formError" class="error-message"></div>
+                        </form>
+                    </div>
+
+                    <!-- Таблица учителей -->
+                    <div class="table-responsive">
+                        <table id="teachersTable">
+                            <thead>
+                                <tr>
+                                    <th>Имя</th>
+                                    <th>Email (логин)</th>
+                                    <th>Пароль</th>
+                                    <th>Тариф</th>
+                                    <th>Доступ до</th>
+                                    <th>Статус</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody id="teachersTableBody">
+                                <tr><td colspan="7">Загрузка...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Вкладка "Статистика" (заглушка) -->
+            <section id="statsTab" class="tab-content">
+                <div class="card">
+                    <h2>Общая статистика</h2>
+                    <p>Здесь будет график доходов, активных учителей и т.д.</p>
+                </div>
+            </section>
+
+            <!-- Вкладка "Настройки" (заглушка) -->
+            <section id="settingsTab" class="tab-content">
+                <div class="card">
+                    <h2>Настройки платформы</h2>
+                    <p>Управление тарифами, уведомлениями и т.д.</p>
+                </div>
+            </section>
+        </main>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
     <script>
-        // Проверка авторизации админа
+        // ==========================================
+        // SIMPLEED CRM — АДМИН-ПАНЕЛЬ
+        // ==========================================
+        
+        // Проверка авторизации
         const adminSession = localStorage.getItem('adminAuth');
         if (!adminSession) {
             window.location.href = 'admin_login.html';
         }
-
-        // Можно распарсить данные админа
         const adminData = JSON.parse(adminSession);
-        document.getElementById('adminNameDisplay').textContent = adminData.name || 'Админ';
-
-        // Кнопка выхода
-        document.getElementById('logoutAdminBtn').addEventListener('click', () => {
+        
+        // Инициализация Supabase
+        const supabase = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
+        
+        // DOM элементы
+        const teachersTbody = document.getElementById('teachersTableBody');
+        const adminNameSpan = document.getElementById('adminNameDisplay');
+        const adminAvatar = document.getElementById('adminAvatar');
+        const logoutBtn = document.getElementById('logoutAdminBtn');
+        const backToCrmBtn = document.getElementById('backToCrmBtn');
+        const addTeacherBtn = document.getElementById('addTeacherBtn');
+        const addFormDiv = document.getElementById('addTeacherForm');
+        const newTeacherForm = document.getElementById('newTeacherForm');
+        const cancelAddBtn = document.getElementById('cancelAddBtn');
+        const formError = document.getElementById('formError');
+        
+        // Отображение имени админа
+        adminNameSpan.textContent = adminData.name || 'Администратор';
+        adminAvatar.textContent = (adminData.name || 'A').charAt(0).toUpperCase();
+        
+        // Загрузка списка учителей
+        async function loadTeachers() {
+            try {
+                const { data, error } = await supabase
+                    .from('teacher_profiles')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                    
+                if (error) throw error;
+                
+                if (!data || data.length === 0) {
+                    teachersTbody.innerHTML = `<tr><td colspan="7">Нет преподавателей</td></tr>`;
+                    return;
+                }
+                
+                const now = new Date();
+                teachersTbody.innerHTML = data.map(t => {
+                    const accessUntil = t.access_until ? new Date(t.access_until) : null;
+                    const isActive = accessUntil && accessUntil > now;
+                    const statusBadge = isActive
+                        ? '<span class="badge active">Активен</span>'
+                        : '<span class="badge blocked">Заблокирован</span>';
+                    
+                    return `
+                        <tr>
+                            <td>${t.teacher_name || '—'}</td>
+                            <td>${t.email}</td>
+                            <td><code>${t.plain_password || 'не задан'}</code></td>
+                            <td><span class="badge plan-${t.subscription_plan}">${t.subscription_plan}</span></td>
+                            <td>${accessUntil ? accessUntil.toLocaleDateString('ru-RU') : '—'}</td>
+                            <td>${statusBadge}</td>
+                            <td>
+                                <button class="btn-icon" onclick="editTeacher('${t.id}')" title="Редактировать имя"><i class="fas fa-edit"></i></button>
+                                <button class="btn-icon" onclick="extendAccess('${t.id}')" title="Продлить на 30 дней"><i class="fas fa-calendar-plus"></i></button>
+                                <button class="btn-icon" onclick="toggleBlock('${t.id}', ${isActive})" title="${isActive ? 'Заблокировать' : 'Разблокировать'}">
+                                    <i class="fas fa-${isActive ? 'ban' : 'unlock'}"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (err) {
+                console.error(err);
+                teachersTbody.innerHTML = `<tr><td colspan="7">Ошибка загрузки: ${err.message}</td></tr>`;
+            }
+        }
+        
+        // Глобальные функции действий
+        window.editTeacher = async (id) => {
+            const newName = prompt('Введите новое имя учителя:');
+            if (newName) {
+                const { error } = await supabase
+                    .from('teacher_profiles')
+                    .update({ teacher_name: newName })
+                    .eq('id', id);
+                if (error) alert('Ошибка: ' + error.message);
+                else loadTeachers();
+            }
+        };
+        
+        window.extendAccess = async (id) => {
+            const { data, error: fetchError } = await supabase
+                .from('teacher_profiles')
+                .select('access_until')
+                .eq('id', id)
+                .single();
+            if (fetchError) {
+                alert('Ошибка получения данных: ' + fetchError.message);
+                return;
+            }
+            const current = data?.access_until ? new Date(data.access_until) : new Date();
+            current.setDate(current.getDate() + 30);
+            const { error: updateError } = await supabase
+                .from('teacher_profiles')
+                .update({ access_until: current.toISOString() })
+                .eq('id', id);
+            if (updateError) alert('Ошибка продления: ' + updateError.message);
+            else loadTeachers();
+        };
+        
+        window.toggleBlock = async (id, currentlyActive) => {
+            let newDate;
+            if (currentlyActive) {
+                newDate = new Date().toISOString();
+            } else {
+                const future = new Date();
+                future.setDate(future.getDate() + 30);
+                newDate = future.toISOString();
+            }
+            const { error } = await supabase
+                .from('teacher_profiles')
+                .update({ access_until: newDate })
+                .eq('id', id);
+            if (error) alert('Ошибка изменения доступа: ' + error.message);
+            else loadTeachers();
+        };
+        
+        // Создание нового учителя
+        newTeacherForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            formError.textContent = '';
+            
+            const email = document.getElementById('newEmail').value.trim();
+            const name = document.getElementById('newName').value.trim();
+            const password = document.getElementById('newPassword').value;
+            const plan = document.getElementById('newPlan').value;
+            const accessUntilInput = document.getElementById('newAccessUntil').value;
+            
+            if (!email || !name || !password) {
+                formError.textContent = 'Email, имя и пароль обязательны';
+                return;
+            }
+            
+            // Определяем дату окончания доступа
+            let accessDate;
+            if (accessUntilInput) {
+                accessDate = new Date(accessUntilInput);
+                accessDate.setHours(23, 59, 59);
+            } else {
+                accessDate = new Date();
+                accessDate.setDate(accessDate.getDate() + (plan === 'trial' ? 14 : 30));
+            }
+            
+            try {
+                // Используем RPC функцию create_teacher (должна быть создана в БД)
+                const { error } = await supabase.rpc('create_teacher', {
+                    teacher_email: email,
+                    teacher_name: name,
+                    teacher_password: password,
+                    plan_name: plan,
+                    access_date: accessDate.toISOString()
+                });
+                
+                if (error) {
+                    // Если функции нет, пробуем прямой способ через два запроса
+                    if (error.message.includes('function') || error.message.includes('rpc')) {
+                        // Альтернативный способ: используем signUp + ручное заполнение teacher_profiles
+                        await createTeacherFallback(email, name, password, plan, accessDate);
+                    } else {
+                        throw error;
+                    }
+                }
+                
+                newTeacherForm.reset();
+                addFormDiv.classList.add('hidden');
+                loadTeachers();
+                alert('Учитель успешно создан!');
+            } catch (err) {
+                console.error(err);
+                formError.textContent = 'Ошибка: ' + err.message;
+            }
+        });
+        
+        // Резервный метод создания учителя (если RPC не настроена)
+        async function createTeacherFallback(email, name, password, plan, accessDate) {
+            // 1. Регистрируем пользователя через signUp (это потребует подтверждения email, если включено)
+            const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+                email: email,
+                password: password,
+                options: {
+                    data: { teacher_name: name }
+                }
+            });
+            
+            if (signUpError) throw signUpError;
+            
+            // Ждём немного, чтобы пользователь появился в auth.users
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // 2. Добавляем запись в teacher_profiles (нужен ID пользователя)
+            const { data: userData } = await supabase.auth.getUser();
+            // Если не получилось получить ID, можно запросить через email из auth.users
+            let userId = signUpData.user?.id;
+            if (!userId) {
+                const { data: userByEmail } = await supabase
+                    .from('auth.users')
+                    .select('id')
+                    .eq('email', email)
+                    .single();
+                userId = userByEmail?.id;
+            }
+            
+            if (!userId) throw new Error('Не удалось получить ID созданного пользователя');
+            
+            const { error: profileError } = await supabase
+                .from('teacher_profiles')
+                .insert({
+                    id: userId,
+                    email: email,
+                    teacher_name: name,
+                    subscription_plan: plan,
+                    plain_password: password,
+                    access_until: accessDate.toISOString()
+                });
+                
+            if (profileError) throw profileError;
+        }
+        
+        // Показать/скрыть форму
+        addTeacherBtn.addEventListener('click', () => {
+            addFormDiv.classList.toggle('hidden');
+        });
+        
+        cancelAddBtn.addEventListener('click', () => {
+            addFormDiv.classList.add('hidden');
+            formError.textContent = '';
+        });
+        
+        // Выход
+        logoutBtn.addEventListener('click', () => {
             localStorage.removeItem('adminAuth');
             window.location.href = 'admin_login.html';
         });
-
-        // Остальная логика загрузки учителей...
+        
+        // Переход в CRM (интерфейс учителя)
+        backToCrmBtn.addEventListener('click', () => {
+            window.location.href = 'index.html';
+        });
+        
+        // Переключение вкладок
+        document.querySelectorAll('[data-tab]').forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                e.preventDefault();
+                const tabId = tab.dataset.tab;
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                document.getElementById(tabId + 'Tab').classList.add('active');
+                document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+                tab.classList.add('active');
+            });
+        });
+        
+        // Загрузка данных при старте
+        loadTeachers();
     </script>
-    <!-- Подключаем основной admin.js, если нужно -->
-    <script src="admin.js"></script>
 </body>
 </html>
