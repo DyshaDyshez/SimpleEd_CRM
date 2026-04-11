@@ -141,7 +141,15 @@
     </div>
 
     <!-- Модальное окно карточки преподавателя -->
-   
+    <div id="teacherModal" class="modal hidden">
+        <div class="modal-card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2 id="modalTeacherName">Имя преподавателя</h2>
+                <button class="btn-icon" id="closeModalBtn"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="modalContent">Загрузка...</div>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
