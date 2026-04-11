@@ -1,14 +1,13 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Вход в SimpleEd CRM</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
-<body class="auth-page" class="auth-page authorized">
+<body class="auth-page">
     <div class="auth-container">
         <div class="auth-card">
             <div class="logo">
@@ -16,12 +15,12 @@
                 <span>SimpleEd</span>
             </div>
             <h2>Добро пожаловать</h2>
-            <p>Введите данные для доступа к вашей CRM</p>
+            <p>Введите ваш номер телефона и пароль</p>
             
             <form id="loginForm">
                 <div class="input-group">
                     <label>Номер телефона</label>
-                    <input type="tel" id="phone" placeholder="+7 (___) ___-__-__" required>
+                    <input type="text" id="phone" placeholder="+7 (999) 123-45-67" required>
                 </div>
                 <div class="input-group">
                     <label>Пароль</label>
@@ -36,12 +35,9 @@
         </div>
     </div>
 
-
-
+    <!-- Скрипты в правильном порядке -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<script src="config.js"></script>
-
-<script src="auth.js"></script>
+    <script src="config.js"></script>
+    <script src="auth.js"></script>
 </body>
 </html>
