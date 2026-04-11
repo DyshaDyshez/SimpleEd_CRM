@@ -1,435 +1,363 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SimpleEd — Админ-панель</title>
-    <link rel="stylesheet" href="style.css">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        /* === СТИЛИ АДМИН‑ПАНЕЛИ === */
-        .admin-app .main-content { padding: 2rem; }
-        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
-        .btn-primary { background: #D4A373; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; font-weight: 600; cursor: pointer; }
-        .btn-primary:hover { background: #B8835E; }
-        .btn-success { background: #5B8C6F; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; }
-        .btn-warning { background: #E9C46A; color: #3D342B; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; }
-        .btn-secondary { background: #E9E1D4; color: #3D342B; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; }
-        .btn-icon { background: transparent; border: none; color: #7A6E62; font-size: 1rem; padding: 0.3rem 0.5rem; cursor: pointer; }
-        .btn-icon:hover { color: #D4A373; }
-        .table-responsive { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 0.8rem; text-align: left; border-bottom: 1px solid #E9E1D4; }
-        th { font-weight: 600; color: #7A6E62; font-size: 0.8rem; text-transform: uppercase; }
-        .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
-        .badge.active { background: #E1F0E0; color: #2C4C3B; }
-        .badge.inactive { background: #FEE4D4; color: #8B4E2C; }
-        .badge.blocked { background: #f8d7da; color: #721c24; }
-        .badge.vip { background: #5C4F42; color: white; }
-        .badge.plan-trial { background: #E9E1D4; color: #5C4F42; }
-        .badge.plan-pro { background: #D4A373; color: white; }
-        .badge.plan-vip { background: #5C4F42; color: white; }
-        .form-card { background: #FEFAE0; padding: 1.5rem; border-radius: 16px; margin-bottom: 2rem; border: 1px solid #E9E1D4; }
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
-        .form-group label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.3rem; color: #7A6E62; }
-        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 0.6rem; border: 1px solid #E9E1D4; border-radius: 8px; background: white; }
-        .form-actions { display: flex; gap: 1rem; margin-top: 1rem; }
-        .hidden { display: none; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-        .error-message { color: #d32f2f; margin-top: 0.5rem; }
-        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-        .modal-card { background: white; border-radius: 24px; padding: 2rem; max-width: 800px; width: 90%; max-height: 80vh; overflow-y: auto; }
-        .stats-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 1rem; margin: 1rem 0; }
-        .stat-item { background: #FEFAE0; padding: 1rem; border-radius: 12px; text-align: center; }
-        .stat-value { font-size: 1.8rem; font-weight: 700; color: #5C4F42; }
-        .payment-history { margin-top: 1.5rem; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SimpleEd Admin</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    /* минимальные дополнительные стили для админки */
+    .admin-app .main-content { padding: 2rem; }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+    .btn { padding: 0.5rem 1rem; border-radius: 8px; border: none; cursor: pointer; font-weight: 500; }
+    .btn-primary { background: #D4A373; color: white; }
+    .btn-warning { background: #E9C46A; color: #3D342B; }
+    .btn-success { background: #5B8C6F; color: white; }
+    .btn-secondary { background: #E9E1D4; color: #3D342B; }
+    .badge { padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.75rem; }
+    .badge.active { background: #E1F0E0; color: #2C4C3B; }
+    .badge.inactive { background: #FEE4D4; color: #8B4E2C; }
+    .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+    .modal-card { background: white; border-radius: 24px; padding: 2rem; max-width: 800px; width: 90%; max-height: 80vh; overflow-y: auto; }
+    .hidden { display: none; }
+    .stats-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 1rem; margin: 1rem 0; }
+    .stat-item { background: #FEFAE0; padding: 1rem; border-radius: 12px; text-align: center; }
+    .stat-value { font-size: 2rem; font-weight: bold; }
+  </style>
 </head>
 <body>
-    <div id="app" class="admin-app">
-        <aside class="sidebar">
-            <div class="logo">
-                <i class="fas fa-graduation-cap"></i>
-                <span>SimpleEd Admin</span>
+  <div id="app" class="admin-app">
+    <aside class="sidebar">
+      <div class="logo"><i class="fas fa-graduation-cap"></i><span>SimpleEd</span></div>
+      <nav>
+        <a href="#" class="active" data-tab="teachers"><i class="fas fa-users"></i> Преподаватели</a>
+        <a href="#" data-tab="payments"><i class="fas fa-credit-card"></i> Оплаты</a>
+      </nav>
+      <div class="sidebar-footer">
+        <button id="backToCrmBtn" class="btn-secondary" style="width:100%; margin-bottom:0.5rem;">В CRM</button>
+        <button id="logoutAdminBtn" class="btn-secondary" style="width:100%;">Выйти</button>
+      </div>
+    </aside>
+    <main class="main-content">
+      <header>
+        <h1>Администратор</h1>
+        <div class="user-profile"><span id="adminName"></span><div class="avatar" id="adminAvatar">A</div></div>
+      </header>
+
+      <!-- Вкладка Преподаватели -->
+      <section id="teachersTab" class="tab-content active">
+        <div class="card">
+          <div class="card-header">
+            <h2>Преподаватели</h2>
+            <div>
+              <button class="btn btn-warning" id="remindPaymentsBtn"><i class="fas fa-bell"></i> Напомнить</button>
+              <button class="btn btn-primary" id="addTeacherBtn"><i class="fas fa-plus"></i> Добавить</button>
             </div>
-            <nav>
-                <a href="#" class="active" data-tab="teachers"><i class="fas fa-users"></i> Преподаватели</a>
-                <a href="#" data-tab="payments"><i class="fas fa-credit-card"></i> Все оплаты</a>
-                <a href="#" data-tab="stats"><i class="fas fa-chart-bar"></i> Статистика</a>
-                <a href="#" data-tab="settings"><i class="fas fa-cog"></i> Настройки</a>
-            </nav>
-            <div class="sidebar-footer">
-                <button id="backToCrmBtn" class="btn-secondary" style="width:100%; margin-bottom:0.5rem;"><i class="fas fa-arrow-left"></i> В CRM</button>
-                <button id="logoutAdminBtn" class="btn-secondary" style="width:100%;"><i class="fas fa-sign-out-alt"></i> Выход</button>
-            </div>
-        </aside>
-
-        <main class="main-content">
-            <header>
-                <h1>Панель администратора</h1>
-                <div class="user-profile">
-                    <span id="adminNameDisplay">Админ</span>
-                    <div class="avatar" id="adminAvatar">A</div>
-                </div>
-            </header>
-
-            <!-- Вкладка "Преподаватели" -->
-            <section id="teachersTab" class="tab-content active">
-                <div class="card">
-                    <div class="card-header">
-                        <h2><i class="fas fa-chalkboard-user"></i> Преподаватели</h2>
-                        <div>
-                            <button class="btn-warning" id="remindPaymentsBtn"><i class="fas fa-bell"></i> Напомнить об оплате</button>
-                            <button class="btn-primary" id="addTeacherBtn"><i class="fas fa-plus"></i> Добавить</button>
-                        </div>
-                    </div>
-
-                    <div id="addTeacherForm" class="form-card hidden">
-                        <h3>Новый преподаватель</h3>
-                        <form id="newTeacherForm">
-                            <div class="form-row">
-                                <div class="form-group"><label>Email *</label><input type="email" id="newEmail" required></div>
-                                <div class="form-group"><label>Имя *</label><input type="text" id="newName" required></div>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group"><label>Пароль *</label><input type="text" id="newPassword" required></div>
-                                <div class="form-group"><label>Тариф</label><select id="newPlan"><option value="trial">Trial</option><option value="pro">Pro</option><option value="vip">VIP</option></select></div>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group"><label>Доступ до</label><input type="date" id="newAccessUntil"></div>
-                                <div class="form-group"><label>Статус</label><select id="newStatus"><option value="active">Активен</option><option value="inactive">Неактивен</option><option value="vip">VIP</option></select></div>
-                            </div>
-                            <div class="form-actions">
-                                <button type="submit" class="btn-success"><i class="fas fa-save"></i> Создать</button>
-                                <button type="button" class="btn-secondary" id="cancelAddBtn">Отмена</button>
-                            </div>
-                            <div id="formError" class="error-message"></div>
-                        </form>
-                    </div>
-
-                    <div class="table-responsive">
-                        <table id="teachersTable">
-                            <thead><tr><th>Имя</th><th>Email</th><th>Тариф</th><th>Доступ до</th><th>Статус</th><th>Оплата до</th><th>Действия</th></tr></thead>
-                            <tbody id="teachersTableBody"><tr><td colspan="7">Загрузка...</td></tr></tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-            <section id="paymentsTab" class="tab-content">
-                <div class="card">
-                    <div class="card-header"><h2>История оплат</h2></div>
-                    <div class="table-responsive">
-                        <table id="allPaymentsTable">
-                            <thead><tr><th>Дата</th><th>Преподаватель</th><th>Сумма</th><th>Оплачено до</th><th>Заметка</th></tr></thead>
-                            <tbody id="allPaymentsBody"><tr><td colspan="5">Загрузка...</td></tr></tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-            <section id="statsTab" class="tab-content"><div class="card"><h2>Общая статистика</h2><p>Скоро</p></div></section>
-            <section id="settingsTab" class="tab-content"><div class="card"><h2>Настройки</h2><p>Управление платформой</p></div></section>
-        </main>
-    </div>
-
-    <!-- Модальное окно -->
-    <div id="teacherModal" class="modal hidden">
-        <div class="modal-card">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h2 id="modalTeacherName">Имя преподавателя</h2>
-                <button class="btn-icon" id="closeModalBtn"><i class="fas fa-times"></i></button>
-            </div>
-            <div id="modalContent">Загрузка...</div>
+          </div>
+          <!-- форма добавления (скрыта) -->
+          <div id="addTeacherForm" class="form-card hidden" style="background:#FEFAE0; padding:1.5rem; border-radius:16px; margin-bottom:2rem;">
+            <h3>Новый преподаватель</h3>
+            <form id="newTeacherForm">
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                <div><label>Email*</label><input type="email" id="newEmail" required></div>
+                <div><label>Имя*</label><input type="text" id="newName" required></div>
+                <div><label>Пароль*</label><input type="text" id="newPassword" required></div>
+                <div><label>Тариф</label><select id="newPlan"><option value="trial">Trial</option><option value="pro">Pro</option><option value="vip">VIP</option></select></div>
+                <div><label>Доступ до</label><input type="date" id="newAccessUntil"></div>
+                <div><label>Статус</label><select id="newStatus"><option value="active">Активен</option><option value="inactive">Неактивен</option></select></div>
+              </div>
+              <div style="margin-top:1rem;">
+                <button type="submit" class="btn btn-success">Создать</button>
+                <button type="button" class="btn btn-secondary" id="cancelAddBtn">Отмена</button>
+              </div>
+              <div id="formError" style="color:#d32f2f;"></div>
+            </form>
+          </div>
+          <!-- таблица -->
+          <div class="table-responsive">
+            <table>
+              <thead><tr><th>Имя</th><th>Email</th><th>Тариф</th><th>Доступ до</th><th>Статус</th><th>Оплата до</th><th></th></tr></thead>
+              <tbody id="teachersTableBody"></tbody>
+            </table>
+          </div>
         </div>
+      </section>
+
+      <!-- Вкладка Все оплаты -->
+      <section id="paymentsTab" class="tab-content">
+        <div class="card">
+          <h2>История оплат</h2>
+          <table>
+            <thead><tr><th>Дата</th><th>Преподаватель</th><th>Сумма</th><th>Оплачено до</th><th>Заметка</th></tr></thead>
+            <tbody id="allPaymentsBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Модальное окно карточки -->
+  <div id="teacherModal" class="modal hidden">
+    <div class="modal-card">
+      <div style="display:flex; justify-content:space-between;">
+        <h2 id="modalTeacherName"></h2>
+        <button class="btn-icon" id="closeModalBtn"><i class="fas fa-times"></i></button>
+      </div>
+      <div id="modalContent">Загрузка...</div>
     </div>
+  </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="config.js"></script>
-    <script>
-        (function() {
-            // Проверка авторизации
-            const adminSession = localStorage.getItem('adminAuth');
-            if (!adminSession) { window.location.href = 'admin_login.html'; return; }
-            const adminData = JSON.parse(adminSession);
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script>
+    (function(){
+      // ----- АВТОРИЗАЦИЯ -----
+      const session = localStorage.getItem('adminAuth');
+      if (!session) location.href = 'admin_login.html';
+      const admin = JSON.parse(session);
+      document.getElementById('adminName').textContent = admin.name || 'Админ';
+      document.getElementById('adminAvatar').textContent = (admin.name || 'A')[0].toUpperCase();
 
-            const _supabase = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
+      const supabase = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
 
-            // DOM
-            const teachersTbody = document.getElementById('teachersTableBody');
-            const adminNameSpan = document.getElementById('adminNameDisplay');
-            const adminAvatar = document.getElementById('adminAvatar');
-            const logoutBtn = document.getElementById('logoutAdminBtn');
-            const backToCrmBtn = document.getElementById('backToCrmBtn');
-            const addTeacherBtn = document.getElementById('addTeacherBtn');
-            const addFormDiv = document.getElementById('addTeacherForm');
-            const newTeacherForm = document.getElementById('newTeacherForm');
-            const cancelAddBtn = document.getElementById('cancelAddBtn');
-            const formError = document.getElementById('formError');
-            const remindBtn = document.getElementById('remindPaymentsBtn');
-            const modal = document.getElementById('teacherModal');
-            const modalContent = document.getElementById('modalContent');
-            const modalTeacherName = document.getElementById('modalTeacherName');
-            const closeModalBtn = document.getElementById('closeModalBtn');
-            const allPaymentsBody = document.getElementById('allPaymentsBody');
+      // ----- DOM -----
+      const tbody = document.getElementById('teachersTableBody');
+      const addBtn = document.getElementById('addTeacherBtn');
+      const addFormDiv = document.getElementById('addTeacherForm');
+      const cancelAdd = document.getElementById('cancelAddBtn');
+      const newForm = document.getElementById('newTeacherForm');
+      const formError = document.getElementById('formError');
+      const remindBtn = document.getElementById('remindPaymentsBtn');
+      const modal = document.getElementById('teacherModal');
+      const modalTitle = document.getElementById('modalTeacherName');
+      const modalContent = document.getElementById('modalContent');
+      const closeModal = document.getElementById('closeModalBtn');
+      const allPaymentsBody = document.getElementById('allPaymentsBody');
+      const tabs = document.querySelectorAll('[data-tab]');
+      const tabContents = document.querySelectorAll('.tab-content');
 
-            adminNameSpan.textContent = adminData.name || 'Администратор';
-            adminAvatar.textContent = (adminData.name || 'A').charAt(0).toUpperCase();
+      // ----- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ -----
+      function formatDate(d) { return d ? new Date(d).toLocaleDateString('ru-RU') : '—'; }
 
-            // Загрузка преподавателей
-            async function loadTeachers() {
-                try {
-                    const { data, error } = await _supabase
-                        .from('teacher_profiles')
-                        .select('*, teacher_payments(paid_until)')
-                        .order('created_at', { ascending: false });
+      // ----- ЗАГРУЗКА ПРЕПОДАВАТЕЛЕЙ -----
+      async function loadTeachers() {
+        const { data, error } = await supabase
+          .from('teacher_profiles')
+          .select('*, teacher_payments(paid_until)')
+          .order('created_at', { ascending: false });
+        if (error) {
+          tbody.innerHTML = `<tr><td colspan="7">Ошибка загрузки</td></tr>`;
+          return;
+        }
+        if (!data?.length) {
+          tbody.innerHTML = `<tr><td colspan="7">Нет преподавателей</td></tr>`;
+          return;
+        }
+        const now = new Date();
+        tbody.innerHTML = data.map(t => {
+          const access = t.access_until ? new Date(t.access_until) : null;
+          const lastPay = t.teacher_payments?.sort((a,b)=> new Date(b.paid_until)-new Date(a.paid_until))[0];
+          const paidUntil = lastPay?.paid_until ? new Date(lastPay.paid_until) : null;
+          const warning = paidUntil && (paidUntil - now) < 3*24*3600*1000 && paidUntil > now;
+          const status = t.activity_status || (access && access > now ? 'active' : 'inactive');
+          return `<tr>
+            <td>${t.teacher_name||'—'}</td>
+            <td>${t.email}</td>
+            <td><span class="badge">${t.subscription_plan}</span></td>
+            <td>${formatDate(access)}</td>
+            <td><span class="badge ${status}">${status}</span></td>
+            <td>${formatDate(paidUntil)} ${warning?'⚠️':''}</td>
+            <td><button class="btn-icon view-card" data-id="${t.id}"><i class="fas fa-id-card"></i></button></td>
+          </tr>`;
+        }).join('');
+        document.querySelectorAll('.view-card').forEach(b => b.onclick = () => openCard(b.dataset.id));
+      }
 
-                    if (error) throw error;
-                    if (!data?.length) {
-                        teachersTbody.innerHTML = `<tr><td colspan="7">Нет преподавателей</td></tr>`;
-                        return;
-                    }
+      // ----- ОТКРЫТИЕ КАРТОЧКИ (ПОЛНОСТЬЮ ПЕРЕПИСАНО) -----
+      async function openCard(teacherId) {
+        modal.classList.remove('hidden');
+        modalTitle.textContent = 'Загрузка...';
+        modalContent.innerHTML = '<p>Загрузка данных...</p>';
 
-                    const now = new Date();
-                    teachersTbody.innerHTML = data.map(t => {
-                        const accessUntil = t.access_until ? new Date(t.access_until) : null;
-                        const lastPayment = t.teacher_payments?.length ? t.teacher_payments.sort((a,b)=> new Date(b.paid_until)-new Date(a.paid_until))[0] : null;
-                        const paidUntil = lastPayment?.paid_until ? new Date(lastPayment.paid_until) : null;
-                        const paymentWarning = paidUntil && (paidUntil - now) < 3*24*60*60*1000 && paidUntil > now;
-                        const statusClass = t.activity_status || (accessUntil && accessUntil > now ? 'active' : 'inactive');
-                        
-                        return `<tr>
-                            <td>${t.teacher_name || '—'}</td>
-                            <td>${t.email}</td>
-                            <td><span class="badge plan-${t.subscription_plan}">${t.subscription_plan}</span></td>
-                            <td>${accessUntil ? accessUntil.toLocaleDateString('ru-RU') : '—'}</td>
-                            <td><span class="badge ${statusClass}">${statusClass}</span></td>
-                            <td>${paidUntil ? paidUntil.toLocaleDateString('ru-RU') : '—'} ${paymentWarning?'<i class="fas fa-exclamation-triangle" style="color:#d32f2f;"></i>':''}</td>
-                            <td><button class="btn-icon view-card" data-id="${t.id}" title="Карточка"><i class="fas fa-id-card"></i></button></td>
-                        </tr>`;
-                    }).join('');
+        try {
+          // 1. Профиль
+          const { data: profile, error: profErr } = await supabase
+            .from('teacher_profiles').select('*').eq('id', teacherId).single();
+          if (profErr) throw profErr;
 
-                    document.querySelectorAll('.view-card').forEach(btn => {
-                        btn.addEventListener('click', () => openTeacherCard(btn.dataset.id));
-                    });
-                } catch (err) {
-                    console.error(err);
-                    teachersTbody.innerHTML = `<tr><td colspan="7">Ошибка загрузки</td></tr>`;
-                }
-            }
+          // 2. Параллельные запросы с защитой
+          const [lessRes, studRes, payRes, noteRes] = await Promise.allSettled([
+            supabase.from('lessons').select('*', { count:'exact', head:true }).eq('teacher_id', teacherId),
+            supabase.from('students').select('*', { count:'exact', head:true }).eq('teacher_id', teacherId),
+            supabase.from('teacher_payments').select('*').eq('teacher_id', teacherId).order('payment_date',{ascending:false}),
+            supabase.from('teacher_notes').select('*').eq('teacher_id', teacherId).order('created_at',{ascending:false})
+          ]);
 
-            // Открытие карточки преподавателя
-            async function openTeacherCard(teacherId) {
-                if (!modal) return;
-                
-                modal.classList.remove('hidden');
-                modalTeacherName.textContent = 'Загрузка...';
-                modalContent.innerHTML = '<p style="text-align:center; padding:2rem;">Загрузка данных...</p>';
+          const lessons = lessRes.status==='fulfilled' ? lessRes.value.count : '?';
+          const students = studRes.status==='fulfilled' ? studRes.value.count : '?';
+          const payments = payRes.status==='fulfilled' ? payRes.value.data : [];
+          const notes = noteRes.status==='fulfilled' ? noteRes.value.data : [];
 
-                try {
-                    const { data: profile, error: profileError } = await _supabase
-                        .from('teacher_profiles')
-                        .select('*')
-                        .eq('id', teacherId)
-                        .single();
-                    if (profileError) throw profileError;
+          modalTitle.textContent = profile.teacher_name || 'Преподаватель';
 
-                    const [lessonsRes, studentsRes, paymentsRes, notesRes] = await Promise.allSettled([
-                        _supabase.from('lessons').select('*', { count: 'exact', head: true }).eq('teacher_id', teacherId),
-                        _supabase.from('students').select('*', { count: 'exact', head: true }).eq('teacher_id', teacherId),
-                        _supabase.from('teacher_payments').select('*').eq('teacher_id', teacherId).order('payment_date', { ascending: false }),
-                        _supabase.from('teacher_notes').select('*').eq('teacher_id', teacherId).order('created_at', { ascending: false })
-                    ]);
+          // Строим контент
+          let html = `
+            <div class="stats-grid">
+              <div class="stat-item"><div class="stat-value">${lessons}</div>уроков</div>
+              <div class="stat-item"><div class="stat-value">${students}</div>учеников</div>
+              <div class="stat-item"><div class="stat-value">${payments.length}</div>платежей</div>
+            </div>
+            <h3>Редактировать</h3>
+            <form id="editForm">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                <div><label>Имя</label><input id="editName" value="${profile.teacher_name||''}"></div>
+                <div><label>Email</label><input id="editEmail" value="${profile.email}"></div>
+                <div><label>Пароль</label><input id="editPassword" placeholder="Новый пароль"></div>
+                <div><label>Тариф</label><select id="editPlan">
+                  <option ${profile.subscription_plan==='trial'?'selected':''}>trial</option>
+                  <option ${profile.subscription_plan==='pro'?'selected':''}>pro</option>
+                  <option ${profile.subscription_plan==='vip'?'selected':''}>vip</option>
+                </select></div>
+                <div><label>Доступ до</label><input type="date" id="editAccess" value="${profile.access_until?.slice(0,10)||''}"></div>
+                <div><label>Статус</label><select id="editStatus">
+                  <option ${profile.activity_status==='active'?'selected':''}>active</option>
+                  <option ${profile.activity_status==='inactive'?'selected':''}>inactive</option>
+                  <option ${profile.activity_status==='vip'?'selected':''}>vip</option>
+                  <option ${profile.activity_status==='blocked'?'selected':''}>blocked</option>
+                </select></div>
+              </div>
+              <button type="submit" class="btn btn-success" style="margin-top:1rem;">Сохранить</button>
+            </form>
+            <h3>Оплаты</h3>
+            <button class="btn btn-primary" id="showAddPayment">+ Добавить оплату</button>
+            <div id="addPaymentBlock" style="display:none; margin-top:1rem;">
+              <input type="number" id="payAmount" placeholder="Сумма" style="width:100px;">
+              <input type="date" id="payUntil">
+              <input type="text" id="payNote" placeholder="Заметка">
+              <button class="btn btn-success" id="savePayment">Сохранить</button>
+            </div>
+            <div style="margin-top:1rem;">${payments.map(p=>`<div>${p.payment_date} – ${p.amount}₽ до ${p.paid_until} (${p.notes||''})</div>`).join('')||'Нет оплат'}</div>
+            <h3>Заметки</h3>
+            <textarea id="newNote" placeholder="Новая заметка"></textarea>
+            <button class="btn btn-primary" id="saveNote">Добавить</button>
+            <div>${notes.map(n=>`<div><em>${n.created_at.slice(0,10)}</em> ${n.note}</div>`).join('')||'Нет заметок'}</div>
+          `;
+          modalContent.innerHTML = html;
 
-                    const lessonsCount = lessonsRes.status === 'fulfilled' ? lessonsRes.value.count : '?';
-                    const studentsCount = studentsRes.status === 'fulfilled' ? studentsRes.value.count : '?';
-                    const payments = paymentsRes.status === 'fulfilled' ? paymentsRes.value.data : [];
-                    const notes = notesRes.status === 'fulfilled' ? notesRes.value.data : [];
-
-                    modalTeacherName.textContent = profile.teacher_name || 'Преподаватель';
-
-                    modalContent.innerHTML = `
-                        <div class="stats-grid">
-                            <div class="stat-item"><div class="stat-value">${lessonsCount}</div><div>уроков</div></div>
-                            <div class="stat-item"><div class="stat-value">${studentsCount}</div><div>учеников</div></div>
-                            <div class="stat-item"><div class="stat-value">${payments.length}</div><div>платежей</div></div>
-                        </div>
-                        <h3>Редактирование</h3>
-                        <form id="editTeacherForm">
-                            <div class="form-row">
-                                <div class="form-group"><label>Имя</label><input id="editName" value="${profile.teacher_name||''}"></div>
-                                <div class="form-group"><label>Email</label><input id="editEmail" value="${profile.email}"></div>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group"><label>Пароль</label><input id="editPassword" placeholder="Оставить без изменений" value=""></div>
-                                <div class="form-group"><label>Тариф</label><select id="editPlan">
-                                    <option ${profile.subscription_plan==='trial'?'selected':''}>trial</option>
-                                    <option ${profile.subscription_plan==='pro'?'selected':''}>pro</option>
-                                    <option ${profile.subscription_plan==='vip'?'selected':''}>vip</option>
-                                </select></div>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group"><label>Доступ до</label><input type="date" id="editAccess" value="${profile.access_until?profile.access_until.slice(0,10):''}"></div>
-                                <div class="form-group"><label>Статус</label><select id="editStatus">
-                                    <option ${profile.activity_status==='active'?'selected':''}>active</option>
-                                    <option ${profile.activity_status==='inactive'?'selected':''}>inactive</option>
-                                    <option ${profile.activity_status==='vip'?'selected':''}>vip</option>
-                                    <option ${profile.activity_status==='blocked'?'selected':''}>blocked</option>
-                                </select></div>
-                            </div>
-                            <button type="submit" class="btn-success">Сохранить изменения</button>
-                        </form>
-                        <h3>Оплаты</h3>
-                        <button class="btn-primary" id="addPaymentBtn"><i class="fas fa-plus"></i> Добавить оплату</button>
-                        <div id="addPaymentForm" class="form-card hidden">
-                            <div class="form-row"><input type="number" id="paymentAmount" placeholder="Сумма"><input type="date" id="paymentPaidUntil"></div>
-                            <input type="text" id="paymentNote" placeholder="Заметка">
-                            <button class="btn-success" id="savePaymentBtn">Сохранить оплату</button>
-                        </div>
-                        <div class="payment-history">
-                            ${payments.length ? payments.map(p=>`<div><strong>${p.payment_date}</strong> - ${p.amount}₽ до ${p.paid_until} (${p.notes||''})</div>`).join('') : 'Нет оплат'}
-                        </div>
-                        <h3>Заметки</h3>
-                        <textarea id="newNote" placeholder="Добавить заметку..."></textarea>
-                        <button id="saveNoteBtn" class="btn-primary">Сохранить заметку</button>
-                        <div style="margin-top:1rem;">${notes.length ? notes.map(n=>`<div><em>${n.created_at.slice(0,10)}</em>: ${n.note}</div>`).join('') : 'Нет заметок'}</div>
-                    `;
-
-                    // Безопасное добавление обработчиков
-                    const editForm = document.getElementById('editTeacherForm');
-                    if (editForm) {
-                        editForm.onsubmit = async (e) => {
-                            e.preventDefault();
-                            const newPassword = document.getElementById('editPassword')?.value;
-                            const data = {
-                                teacher_name: document.getElementById('editName')?.value,
-                                email: document.getElementById('editEmail')?.value,
-                                subscription_plan: document.getElementById('editPlan')?.value,
-                                access_until: document.getElementById('editAccess')?.value,
-                                activity_status: document.getElementById('editStatus')?.value
-                            };
-                            const { error } = await _supabase.from('teacher_profiles').update(data).eq('id', teacherId);
-                            if (error) { alert('Ошибка: ' + error.message); return; }
-                            if (newPassword) {
-                                await _supabase.rpc('update_user_password', { user_email: data.email, new_password: newPassword });
-                            }
-                            alert('Сохранено');
-                            modal.classList.add('hidden');
-                            loadTeachers();
-                        };
-                    }
-
-                    const addPaymentBtn = document.getElementById('addPaymentBtn');
-                    const addPaymentForm = document.getElementById('addPaymentForm');
-                    if (addPaymentBtn && addPaymentForm) {
-                        addPaymentBtn.addEventListener('click', () => addPaymentForm.classList.toggle('hidden'));
-                    }
-
-                    const savePaymentBtn = document.getElementById('savePaymentBtn');
-                    if (savePaymentBtn) {
-                        savePaymentBtn.addEventListener('click', async () => {
-                            const amount = document.getElementById('paymentAmount')?.value;
-                            const paidUntil = document.getElementById('paymentPaidUntil')?.value;
-                            const note = document.getElementById('paymentNote')?.value;
-                            if (!amount || !paidUntil) { alert('Введите сумму и дату'); return; }
-                            await _supabase.from('teacher_payments').insert({ teacher_id: teacherId, amount, paid_until: paidUntil, notes: note });
-                            openTeacherCard(teacherId);
-                            loadTeachers();
-                        });
-                    }
-
-                    const saveNoteBtn = document.getElementById('saveNoteBtn');
-                    if (saveNoteBtn) {
-                        saveNoteBtn.addEventListener('click', async () => {
-                            const note = document.getElementById('newNote')?.value;
-                            if (!note) return;
-                            await _supabase.from('teacher_notes').insert({ teacher_id: teacherId, note });
-                            openTeacherCard(teacherId);
-                        });
-                    }
-
-                } catch (err) {
-                    console.error(err);
-                    modalContent.innerHTML = `<p class="error-message">Ошибка загрузки: ${err.message}</p>`;
-                    modalTeacherName.textContent = 'Ошибка';
-                }
-            }
-
-            // Закрытие модалки
-            if (closeModalBtn) closeModalBtn.onclick = () => modal.classList.add('hidden');
-            window.addEventListener('click', (e) => { if (e.target === modal) modal.classList.add('hidden'); });
-
-            // Напоминание об оплате
-            remindBtn.onclick = async () => {
-                const { data, error } = await _supabase.from('teacher_profiles').select('*, teacher_payments(paid_until)');
-                if (error) { alert('Ошибка'); return; }
-                const soon = data.filter(t => {
-                    const last = t.teacher_payments?.sort((a,b)=> new Date(b.paid_until)-new Date(a.paid_until))[0];
-                    if (!last?.paid_until) return false;
-                    const daysLeft = (new Date(last.paid_until) - new Date())/(1000*60*60*24);
-                    return daysLeft > 0 && daysLeft <= 3;
-                });
-                if (soon.length) {
-                    let msg = 'Преподаватели с окончанием оплаты через 1-3 дня:\n';
-                    soon.forEach(t => msg += `${t.teacher_name} (${t.email}) - до ${t.teacher_payments[0].paid_until}\n`);
-                    alert(msg);
-                    if (soon.length === 1) openTeacherCard(soon[0].id);
-                } else {
-                    alert('Нет преподавателей с близким окончанием оплаты.');
-                }
+          // Обработчики внутри модалки
+          const editForm = document.getElementById('editForm');
+          editForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const newPass = document.getElementById('editPassword').value;
+            const updates = {
+              teacher_name: document.getElementById('editName').value,
+              email: document.getElementById('editEmail').value,
+              subscription_plan: document.getElementById('editPlan').value,
+              access_until: document.getElementById('editAccess').value,
+              activity_status: document.getElementById('editStatus').value
             };
-
-            // Добавление учителя
-            newTeacherForm.onsubmit = async (e) => {
-                e.preventDefault();
-                const email = document.getElementById('newEmail').value;
-                const name = document.getElementById('newName').value;
-                const password = document.getElementById('newPassword').value;
-                const plan = document.getElementById('newPlan').value;
-                const accessDate = document.getElementById('newAccessUntil').value;
-                const status = document.getElementById('newStatus').value;
-
-                const { error } = await _supabase.rpc('create_teacher', {
-                    teacher_email: email,
-                    teacher_name: name,
-                    teacher_password: password,
-                    plan_name: plan,
-                    access_date: accessDate || undefined
-                });
-                if (error) { formError.textContent = error.message; return; }
-                const { data: userData } = await _supabase.from('teacher_profiles').select('id').eq('email', email).single();
-                if (userData) await _supabase.from('teacher_profiles').update({ activity_status: status }).eq('id', userData.id);
-                newTeacherForm.reset();
-                addFormDiv.classList.add('hidden');
-                loadTeachers();
-            };
-
-            // Интерфейс
-            addTeacherBtn.onclick = () => addFormDiv.classList.toggle('hidden');
-            cancelAddBtn.onclick = () => { addFormDiv.classList.add('hidden'); formError.textContent = ''; };
-            logoutBtn.onclick = () => { localStorage.removeItem('adminAuth'); window.location.href = 'admin_login.html'; };
-            backToCrmBtn.onclick = () => window.location.href = 'index.html';
-
-            // Вкладки
-            document.querySelectorAll('[data-tab]').forEach(t => t.onclick = (e) => {
-                e.preventDefault();
-                const tabId = t.dataset.tab;
-                document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
-                document.getElementById(tabId+'Tab').classList.add('active');
-                document.querySelectorAll('nav a').forEach(a=>a.classList.remove('active'));
-                t.classList.add('active');
-                if (tabId === 'payments') loadAllPayments();
-            });
-
-            async function loadAllPayments() {
-                const { data } = await _supabase.from('teacher_payments').select('*, teacher_profiles(teacher_name)').order('payment_date', { ascending: false });
-                if (!allPaymentsBody) return;
-                allPaymentsBody.innerHTML = data?.map(p => `<tr><td>${p.payment_date}</td><td>${p.teacher_profiles?.teacher_name}</td><td>${p.amount}₽</td><td>${p.paid_until}</td><td>${p.notes||''}</td></tr>`).join('') || '<tr><td colspan="5">Нет оплат</td></tr>';
+            await supabase.from('teacher_profiles').update(updates).eq('id', teacherId);
+            if (newPass) {
+              await supabase.rpc('update_user_password', { user_email: updates.email, new_password: newPass });
             }
-
+            modal.classList.add('hidden');
             loadTeachers();
-        })();
-    </script>
+          };
+
+          document.getElementById('showAddPayment').onclick = () => {
+            document.getElementById('addPaymentBlock').style.display = 'block';
+          };
+          document.getElementById('savePayment').onclick = async () => {
+            const amount = document.getElementById('payAmount').value;
+            const until = document.getElementById('payUntil').value;
+            const note = document.getElementById('payNote').value;
+            if (!amount || !until) { alert('Введите сумму и дату'); return; }
+            await supabase.from('teacher_payments').insert({ teacher_id: teacherId, amount, paid_until: until, notes: note });
+            openCard(teacherId);
+            loadTeachers();
+          };
+          document.getElementById('saveNote').onclick = async () => {
+            const note = document.getElementById('newNote').value;
+            if (!note) return;
+            await supabase.from('teacher_notes').insert({ teacher_id: teacherId, note });
+            openCard(teacherId);
+          };
+
+        } catch (err) {
+          modalContent.innerHTML = `<p style="color:red">Ошибка: ${err.message}</p>`;
+        }
+      }
+
+      // ----- ЗАКРЫТИЕ МОДАЛКИ -----
+      closeModal.onclick = () => modal.classList.add('hidden');
+      window.onclick = (e) => { if (e.target === modal) modal.classList.add('hidden'); };
+
+      // ----- ДОБАВЛЕНИЕ УЧИТЕЛЯ -----
+      newForm.onsubmit = async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('newEmail').value;
+        const name = document.getElementById('newName').value;
+        const pass = document.getElementById('newPassword').value;
+        const plan = document.getElementById('newPlan').value;
+        const access = document.getElementById('newAccessUntil').value;
+        const status = document.getElementById('newStatus').value;
+        const { error } = await supabase.rpc('create_teacher', {
+          teacher_email: email, teacher_name: name, teacher_password: pass,
+          plan_name: plan, access_date: access || undefined
+        });
+        if (error) { formError.textContent = error.message; return; }
+        const { data: u } = await supabase.from('teacher_profiles').select('id').eq('email', email).single();
+        if (u) await supabase.from('teacher_profiles').update({ activity_status: status }).eq('id', u.id);
+        addFormDiv.classList.add('hidden');
+        newForm.reset();
+        loadTeachers();
+      };
+
+      addBtn.onclick = () => addFormDiv.classList.toggle('hidden');
+      cancelAdd.onclick = () => { addFormDiv.classList.add('hidden'); formError.textContent = ''; };
+
+      // ----- НАПОМИНАНИЕ -----
+      remindBtn.onclick = async () => {
+        const { data } = await supabase.from('teacher_profiles').select('*, teacher_payments(paid_until)');
+        const soon = data.filter(t => {
+          const last = t.teacher_payments?.sort((a,b)=> new Date(b.paid_until)-new Date(a.paid_until))[0];
+          if (!last?.paid_until) return false;
+          const days = (new Date(last.paid_until) - new Date()) / (1000*3600*24);
+          return days > 0 && days <= 3;
+        });
+        if (soon.length) {
+          alert(soon.map(t => `${t.teacher_name} (${t.email}) – до ${t.teacher_payments[0].paid_until}`).join('\n'));
+          if (soon.length === 1) openCard(soon[0].id);
+        } else alert('Нет преподавателей с окончанием оплаты в ближайшие 3 дня.');
+      };
+
+      // ----- ВКЛАДКИ -----
+      tabs.forEach(tab => tab.onclick = (e) => {
+        e.preventDefault();
+        const id = tab.dataset.tab;
+        tabContents.forEach(c => c.classList.remove('active'));
+        document.getElementById(id+'Tab').classList.add('active');
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        if (id === 'payments') loadAllPayments();
+      });
+
+      async function loadAllPayments() {
+        const { data } = await supabase.from('teacher_payments').select('*, teacher_profiles(teacher_name)').order('payment_date',{ascending:false});
+        allPaymentsBody.innerHTML = data?.map(p => `<tr><td>${p.payment_date}</td><td>${p.teacher_profiles?.teacher_name}</td><td>${p.amount}₽</td><td>${p.paid_until}</td><td>${p.notes||''}</td></tr>`).join('') || '<tr><td colspan="5">Нет оплат</td></tr>';
+      }
+
+      // ----- ВЫХОД -----
+      document.getElementById('logoutAdminBtn').onclick = () => {
+        localStorage.removeItem('adminAuth');
+        location.href = 'admin_login.html';
+      };
+      document.getElementById('backToCrmBtn').onclick = () => location.href = 'index.html';
+
+      // СТАРТ
+      loadTeachers();
+    })();
+  </script>
 </body>
 </html>
