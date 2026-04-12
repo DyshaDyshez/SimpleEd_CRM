@@ -1,9 +1,9 @@
 // modules/supabaseClient.js
 import CONFIG from './config.js';
 
-// Проверяем, что Supabase уже подключён (если нет — подключаем)
+// Проверяем, что Supabase уже подключён
 if (!window.supabase) {
-  console.warn('Supabase не загружен. Пожалуйста, убедитесь, что скрипт supabase-js подключен в index.html.');
+    console.error('❌ Supabase не загружен. Убедитесь, что скрипт supabase-js подключен в index.html.');
 }
 
 const supabase = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);

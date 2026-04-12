@@ -4,336 +4,312 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>SimpleEd CRM — Панель учителя</title>
-
-  <!-- ВСТРОЕННЫЕ СТИЛИ (работают гарантированно) -->
-  <style>
-    /* ========================================
-       SIMPLEED CRM — ВСТРОЕННЫЕ СТИЛИ (v2.1)
-       ✅ Без внешних зависимостей
-       ✅ Соответствует текущей структуре DOM
-       ======================================== */
-    
-    :root {
-      --primary-warm: #D4A373;
-      --primary-soft: #FAEDCD;
-      --primary-medium: #E9C46A;
-      --primary-deep: #CC9C5B;
-      --neutral-light: #FEFAE0;
-      --neutral-gray: #E9E1D4;
-      --neutral-dark: #8B7E6C;
-      --neutral-deep: #5C4F42;
-      --card-default: #FFFFFF;
-      --card-group: #E3F0E9;
-      --card-individual: #FDE8E0;
-      --card-stat: #FDF1E5;
-      --card-note: #FFF8E7;
-      --card-warning: #FEE4D4;
-      --card-success: #E1F0E0;
-      --text-primary: #3D342B;
-      --text-secondary: #7A6E62;
-      --text-muted: #A09387;
-      --shadow-sm: 0 4px 12px rgba(60, 50, 40, 0.08);
-      --border-radius-md: 16px;
-      --transition: all 0.25s ease;
-    }
-
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: 'Inter', -apple-system, sans-serif;
-      background: var(--neutral-light);
-      color: var(--text-primary);
-      line-height: 1.5;
-      min-height: 100vh;
-    }
-
-    #app {
-      display: flex;
-      min-height: 100vh;
-    }
-
-    .sidebar {
-      width: 260px;
-      background: white;
-      padding: 1.5rem 1rem;
-      display: flex;
-      flex-direction: column;
-      border-right: 1px solid var(--neutral-gray);
-      box-shadow: var(--shadow-sm);
-    }
-    .sidebar .logo {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0 0.5rem 1.5rem;
-    }
-    .sidebar .logo i { color: var(--primary-warm); font-size: 1.75rem; }
-    .sidebar .logo span { font-weight: 700; color: var(--neutral-deep); }
-
-    .sidebar nav {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-    }
-    .sidebar nav a {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.75rem 1rem;
-      color: var(--text-secondary);
-      text-decoration: none;
-      border-radius: 8px;
-      transition: var(--transition);
-      font-weight: 500;
-    }
-    .sidebar nav a:hover {
-      background: var(--primary-soft);
-      color: var(--primary-deep);
-    }
-    .sidebar nav a.active {
-      background: var(--primary-warm);
-      color: white;
-    }
-
-    .sidebar-footer {
-      padding-top: 1rem;
-      border-top: 1px solid var(--neutral-gray);
-    }
-    #supportBtn, .logout-btn {
-      width: 100%;
-      padding: 0.75rem;
-      background: transparent;
-      border: 1.5px solid var(--neutral-gray);
-      border-radius: 8px;
-      color: var(--text-secondary);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.5rem;
-    }
-    #supportBtn:hover, .logout-btn:hover {
-      background: var(--neutral-light);
-      border-color: var(--primary-warm);
-      color: var(--primary-deep);
-    }
-    .logout-btn {
-      background: var(--card-warning);
-      color: var(--neutral-deep);
-    }
-
-    .main-content {
-      flex: 1;
-      padding: 2rem;
-      background: var(--neutral-light);
-    }
-    .main-content header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 2rem;
-    }
-    .main-content header h1 {
-      color: var(--neutral-deep);
-      font-size: 1.75rem;
-    }
-
-    .user-profile {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      background: white;
-      padding: 0.5rem 1rem;
-      border-radius: 40px;
-      box-shadow: var(--shadow-sm);
-    }
-    .user-profile span { font-weight: 500; }
-    .avatar {
-      width: 40px;
-      height: 40px;
-      background: var(--primary-warm);
-      color: white;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 600;
-      font-size: 1.1rem;
-    }
-
-    /* Формы и карточки */
-    .form-card {
-      background: var(--card-default);
-      padding: 1.5rem;
-      border-radius: var(--border-radius-md);
-      margin-bottom: 2rem;
-      border: 1px solid var(--neutral-gray);
-      box-shadow: var(--shadow-sm);
-    }
-    .form-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1rem;
-      margin-bottom: 1rem;
-    }
-    @media (max-width: 768px) {
-      .form-grid { grid-template-columns: 1fr; }
-    }
-    .form-group label {
-      display: block;
-      font-size: 0.8rem;
-      font-weight: 600;
-      margin-bottom: 0.3rem;
-      color: var(--text-secondary);
-    }
-    .form-group input,
-    .form-group select,
-    .form-group textarea {
-      width: 100%;
-      padding: 0.6rem;
-      border: 1px solid var(--neutral-gray);
-      border-radius: 8px;
-      background: white;
-      font-size: 0.9rem;
-    }
-    .form-actions {
-      display: flex;
-      gap: 1rem;
-      margin-top: 1rem;
-    }
-
-    /* Кнопки */
-    .btn {
-      padding: 0.6rem 1.2rem;
-      border: none;
-      border-radius: 8px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: var(--transition);
-    }
-    .btn-primary {
-      background: var(--primary-warm);
-      color: white;
-    }
-    .btn-primary:hover {
-      background: var(--primary-deep);
-    }
-    .btn-icon {
-      background: transparent;
-      border: none;
-      color: var(--text-muted);
-      font-size: 1rem;
-      padding: 0.3rem 0.5rem;
-      cursor: pointer;
-    }
-    .btn-icon:hover {
-      color: var(--primary-warm);
-    }
-
-    /* Сетка групп */
-    .groups-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 1.5rem;
-      margin-top: 1.5rem;
-    }
-    .group-card {
-      background: white;
-      border-radius: var(--border-radius-md);
-      padding: 1.25rem;
-      box-shadow: var(--shadow-sm);
-      border: 1px solid var(--neutral-gray);
-      transition: var(--transition);
-    }
-    .group-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(0,0,0,0.08);
-    }
-    .group-card-header {
-      margin-bottom: 1rem;
-    }
-    .group-name {
-      font-size: 1.3rem;
-      font-weight: 600;
-      color: var(--text-primary);
-    }
-    .group-subject {
-      font-size: 0.9rem;
-      color: var(--text-secondary);
-    }
-    .group-stats {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 1rem;
-      font-size: 0.9rem;
-      color: var(--text-secondary);
-    }
-    .group-students-preview {
-      border-top: 1px dashed var(--neutral-gray);
-      padding-top: 0.75rem;
-      font-size: 0.9rem;
-    }
-    .student-preview-item {
-      display: flex;
-      justify-content: space-between;
-      padding: 0.25rem 0;
-    }
-    .no-students {
-      color: var(--text-muted);
-      font-style: italic;
-    }
-
-    /* Модальное окно */
-    .modal {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.4);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-    }
-    .modal-card {
-      background: white;
-      border-radius: 24px;
-      padding: 2rem;
-      max-width: 450px;
-      width: 90%;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.15);
-    }
-    .modal-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1.5rem;
-    }
-    .modal-body {
-      margin-bottom: 1.5rem;
-    }
-    .modal-footer {
-      display: flex;
-      justify-content: flex-end;
-      gap: 0.75rem;
-    }
-
-    .hidden { display: none !important; }
-    .error-message {
-      color: #d32f2f;
-      margin-top: 0.5rem;
-      font-size: 0.85rem;
-    }
-  </style>
-
+  <link rel="stylesheet" href="style.css">
   <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- FullCalendar Stylesheet -->
+  <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/main.min.css' rel='stylesheet' />
+
+
+  <!DOCTYPE html>
+  <html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>SimpleEd CRM — Панель учителя</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- FullCalendar Stylesheet -->
+    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/main.min.css' rel='stylesheet' />
+  </head>
+  <body>
+  
+  <div id="app">
+    <!-- Сайдбар -->
+    <aside class="sidebar">
+      <div class="logo">
+        <i class="fas fa-book-open"></i>
+        <span>SimpleEd</span>
+      </div>
+  
+      <nav>
+        <a href="#" data-page="dashboard" class="nav-link active">
+          <i class="fas fa-home"></i>
+          <span>Главная</span>
+        </a>
+        <a href="#" data-page="students" class="nav-link">
+          <i class="fas fa-users"></i>
+          <span>Ученики</span>
+        </a>
+        <a href="#" data-page="groups" class="nav-link">
+          <i class="fas fa-th-large"></i>
+          <span>Группы</span>
+        </a>
+        <a href="#" data-page="schedule" class="nav-link">
+          <i class="fas fa-calendar-alt"></i>
+          <span>Расписание</span>
+        </a>
+        <a href="#" data-page="finance" class="nav-link">
+          <i class="fas fa-coins"></i>
+          <span>Финансы</span>
+        </a>
+        <a href="#" data-page="notes" class="nav-link">
+          <i class="fas fa-sticky-note"></i>
+          <span>Заметки</span>
+        </a>
+      </nav>
+  
+      <div class="sidebar-footer">
+        <button id="supportBtn" class="btn-sm">
+          <i class="fas fa-headset"></i>
+          <span>Поддержка</span>
+        </button>
+        <button id="logoutBtn" class="btn-sm logout-btn">
+          <i class="fas fa-sign-out-alt"></i>
+          <span>Выйти</span>
+        </button>
+      </div>
+    </aside>
+  
+    <!-- Основной контент -->
+    <main class="main-content">
+      <header>
+        <h1 id="pageTitle">Загрузка...</h1>
+        <div class="user-profile">
+          <span id="teacherNameDisplay">Учитель</span>
+          <span id="userAvatar" class="avatar">U</span>
+        </div>
+      </header>
+  
+      <div id="contentArea">
+        <!-- Контент будет вставляться сюда -->
+      </div>
+    </main>
+  </div>
+  
+  <!-- ШАБЛОНЫ -->
+  <template id="dashboardTemplate">
+    <div class="dashboard-grid">
+      <div class="card stat-card">
+        <h3><i class="fas fa-chart-bar"></i> Статистика</h3>
+        <div class="stat-value">0 <span>уроков</span></div>
+        <div class="stat-money">0 ₽</div>
+      </div>
+      <div class="card note-card">
+        <h3><i class="fas fa-sticky-note"></i> Заметка</h3>
+        <p>Мои ученики</p>
+      </div>
+      <div class="card">
+        <h3><i class="fas fa-clock"></i> Ближайшие уроки</h3>
+        <div class="lesson-list">
+          <div class="lesson-item group">
+            <span class="time">Ср, 14:00</span>
+            <div class="info">
+              <strong>Математика</strong>
+              <span>Группа "Начинающие"</span>
+            </div>
+          </div>
+          <p class="text-muted mt-2">Нет запланированных уроков на сегодня</p>
+        </div>
+      </div>
+    </div>
+  </template>
+  
+  <template id="studentsTemplate">
+    <div class="form-card">
+      <h2>Ученики</h2>
+      <button id="addStudentBtn" class="btn btn-primary mb-3">
+        <i class="fas fa-plus"></i> Добавить ученика
+      </button>
+      <div id="studentFormContainer" class="hidden">
+        <!-- Форма будет рендериться через JS -->
+      </div>
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>Имя</th>
+              <th>Родитель</th>
+              <th>Телефон</th>
+              <th>Группа</th>
+              <th>Статус</th>
+              <th>Действия</th>
+            </tr>
+          </thead>
+          <tbody id="studentsTableBody">
+            <tr><td colspan="6">Загрузка...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </template>
+  
+  <template id="groupsTemplate">
+    <div class="form-card">
+      <div class="card-header">
+        <h2>Группы</h2>
+        <div class="flex gap-2">
+          <button id="addGroupBtn" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Создать группу
+          </button>
+          <div class="view-switcher flex gap-1">
+              <button data-view="cards" class="btn-sm active">Карты</button>
+              <button data-view="table" class="btn-sm">Таблица</button>
+          </div>
+        </div>
+      </div>
+      <div id="groupFormContainer" class="hidden">
+        <!-- Форма группы будет рендериться через JS -->
+      </div>
+      <div id="groupsViewContainer">
+        <!-- Карточки или таблица будут вставлены сюда -->
+      </div>
+    </div>
+  </template>
+  
+  <template id="scheduleTemplate">
+      <div class="form-card">
+        <div class="card-header">
+          <h2>Расписание занятий</h2>
+          <button id="assignLessonBtn" class="btn btn-primary">
+            <i class="fas fa-calendar-plus"></i> Назначить урок
+          </button>
+        </div>
+        <!-- Контейнер для календаря -->
+      <div id='calendar'></div>
+      <!-- Форма создания/редактирования урока (изначально скрыта) -->
+      <div id="lessonFormContainer" class="hidden">
+        <!-- Будет заполняться JS -->
+      </div>
+        <div id="lessonFormContainer" class="hidden">
+          <!-- Форма создания/редактирования урока будет вставляться сюда -->
+        </div>
+        <div class="schedule-controls">
+          <!-- Фильтры: выбор даты, группы и т.д. -->
+          <input type="date" id="filterDateStart">
+          <input type="date" id="filterDateEnd">
+          <select id="filterGroupId">
+            <option value="">Все группы</option>
+            <!-- Опции будут добавлены JS -->
+          </select>
+          <button id="applyFiltersBtn" class="btn btn-sm">Применить</button>
+        </div>
+        <div class="schedule-list" id="scheduleList">
+          <!-- Уроки будут вставляться сюда -->
+          <p>Загрузка...</p>
+        </div>
+      </div>
+    </template>
+  
+  <template id="financeTemplate">
+    <div class="form-card">
+      <h2>Финансы</h2>
+      <p>В разработке</p>
+    </div>
+  </template>
+  
+  <template id="notesTemplate">
+    <div class="form-card">
+      <h2>Заметки</h2>
+      <p>В разработке</p>
+    </div>
+  </template>
+  
+  <!-- Шаблон карточки группы -->
+  <template id="groupCardTemplate">
+    <div class="group-card">
+      <div class="group-card-header">
+        <h3 class="group-name">Название группы</h3>
+        <span class="group-subject">Предмет</span>
+      </div>
+      <div class="group-stats">
+        <span><strong class="students-count">0</strong> учеников</span>
+        <span>Следующее занятие: <span class="next-lesson">Нет занятий</span></span>
+      </div>
+      <div class="group-students-preview">
+        <!-- Студенты будут добавлены динамически -->
+        <div class="no-students">Нет учеников</div>
+      </div>
+      <div class="group-card-footer">
+        <button class="btn-icon open-full-group" title="Открыть">
+          <i class="fas fa-eye"></i>
+        </button>
+        <button class="btn-icon schedule-lesson-btn" title="Назначить урок">
+          <i class="fas fa-calendar-plus"></i>
+        </button>
+        <button class="btn-icon delete-group" title="Удалить">
+          <i class="fas fa-trash"></i>
+        </button>
+      </div>
+    </div>
+  </template>
+  
+  <!-- Шаблон полной карточки группы -->
+  <template id="groupFullCardTemplate">
+    <div class="modal">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h2 id="fullGroupName">Группа</h2>
+          <button class="close-modal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="tabs">
+            <button class="tab active" data-tab="info">Информация</button>
+            <button class="tab" data-tab="students">Ученики</button>
+            <button class="tab" data-tab="lessons">Расписание</button>
+          </div>
+          <div class="tab-content active" id="tabGroupInfo">
+            <form id="groupInfoForm" class="form-card">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="editGroupName">Название</label>
+                  <input type="text" id="editGroupName" value="Группа A" required>
+                </div>
+                <div class="form-group">
+                  <label for="editGroupSubject">Предмет</label>
+                  <input type="text" id="editGroupSubject" value="Математика">
+                </div>
+              </div>
+            </form>
+          </div>
+          <div class="tab-content" id="tabGroupStudents">
+            <div class="students-list-full">
+              <!-- Список учеников будет добавлен JS -->
+              <p class="no-students-tab">Нет учеников в группе</p>
+            </div>
+            <button class="btn btn-primary mt-2" id="addStudentToGroupBtn">
+              <i class="fas fa-plus"></i> Добавить ученика
+            </button>
+          </div>
+          <div class="tab-content" id="tabGroupLessons">
+            <div class="lessons-list-full">
+              <!-- Список уроков будет добавлен JS -->
+              <p class="no-lessons-tab">Нет запланированных уроков</p>
+            </div>
+            <button class="btn btn-primary mt-2" id="scheduleLessonInGroupBtn">
+              <i class="fas fa-calendar-plus"></i> Назначить урок
+            </button>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="saveFullGroup" class="btn btn-success">Сохранить</button>
+        </div>
+      </div>
+    </div>
+  </template>
+  
+  <!-- Подключение Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <!-- FullCalendar JS -->
+  <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js'></script>
+  
+  <!-- Модули -->
+  <script type="module" src="./modules/main.js"></script>
+  
+  </body>
+  </html>
+
 </head>
 <body>
 
@@ -466,8 +442,8 @@
           <i class="fas fa-plus"></i> Создать группу
         </button>
         <div class="view-switcher flex gap-1">
-          <button data-view="cards" class="btn-sm active">Карты</button>
-          <button data-view="table" class="btn-sm">Таблица</button>
+            <button data-view="cards" class="btn-sm active">Карты</button>
+            <button data-view="table" class="btn-sm">Таблица</button>
         </div>
       </div>
     </div>
@@ -481,16 +457,38 @@
 </template>
 
 <template id="scheduleTemplate">
-  <div class="form-card">
-    <h2>Расписание занятий</h2>
-    <button id="assignLessonBtn" class="btn btn-primary mb-3">
-      <i class="fas fa-calendar-plus"></i> Назначить урок
-    </button>
-    <div class="schedule-list">
-      <p>Функционал расписания находится в разработке.</p>
+    <div class="form-card">
+      <div class="card-header">
+        <h2>Расписание занятий</h2>
+        <button id="assignLessonBtn" class="btn btn-primary">
+          <i class="fas fa-calendar-plus"></i> Назначить урок
+        </button>
+      </div>
+      <!-- Контейнер для календаря -->
+    <div id='calendar'></div>
+    <!-- Форма создания/редактирования урока (изначально скрыта) -->
+    <div id="lessonFormContainer" class="hidden">
+      <!-- Будет заполняться JS -->
     </div>
-  </div>
-</template>
+      <div id="lessonFormContainer" class="hidden">
+        <!-- Форма создания/редактирования урока будет вставляться сюда -->
+      </div>
+      <div class="schedule-controls">
+        <!-- Фильтры: выбор даты, группы и т.д. -->
+        <input type="date" id="filterDateStart">
+        <input type="date" id="filterDateEnd">
+        <select id="filterGroupId">
+          <option value="">Все группы</option>
+          <!-- Опции будут добавлены JS -->
+        </select>
+        <button id="applyFiltersBtn" class="btn btn-sm">Применить</button>
+      </div>
+      <div class="schedule-list" id="scheduleList">
+        <!-- Уроки будут вставляться сюда -->
+        <p>Загрузка...</p>
+      </div>
+    </div>
+  </template>
 
 <template id="financeTemplate">
   <div class="form-card">
@@ -506,6 +504,7 @@
   </div>
 </template>
 
+<!-- Шаблон карточки группы -->
 <template id="groupCardTemplate">
   <div class="group-card">
     <div class="group-card-header">
@@ -517,23 +516,24 @@
       <span>Следующее занятие: <span class="next-lesson">Нет занятий</span></span>
     </div>
     <div class="group-students-preview">
-      <div class="student-preview-item">
-        <span>Иван Иванов</span>
-        <span>10 лет</span>
-      </div>
-      <div class="student-preview-item">
-        <span>Мария Петрова</span>
-        <span>9 лет</span>
-      </div>
+      <!-- Студенты будут добавлены динамически -->
       <div class="no-students">Нет учеников</div>
     </div>
     <div class="group-card-footer">
-      <button class="btn-icon open-full-group"><i class="fas fa-eye"></i></button>
-      <button class="btn-icon delete-group"><i class="fas fa-trash"></i></button>
+      <button class="btn-icon open-full-group" title="Открыть">
+        <i class="fas fa-eye"></i>
+      </button>
+      <button class="btn-icon schedule-lesson-btn" title="Назначить урок">
+        <i class="fas fa-calendar-plus"></i>
+      </button>
+      <button class="btn-icon delete-group" title="Удалить">
+        <i class="fas fa-trash"></i>
+      </button>
     </div>
   </div>
 </template>
 
+<!-- Шаблон полной карточки группы -->
 <template id="groupFullCardTemplate">
   <div class="modal">
     <div class="modal-card">
@@ -543,44 +543,58 @@
       </div>
       <div class="modal-body">
         <div class="tabs">
-          <button class="tab active" data-tab="info">Информация</button>
-          <button class="tab" data-tab="students">Ученики</button>
-          <button class="tab" data-tab="lessons">Расписание</button>
+            <div class="tab-content" id="tabGroupStudents">
+                <div class="students-list-full">
+                  <!-- ... список учеников ... -->
+                </div>
+                <!-- КНОПКА "Добавить ученика" -->
+                <button class="btn btn-primary mt-2">
+                  <i class="fas fa-plus"></i> Добавить ученика
+                </button>
+              </div>
+              
+              <!-- Внутри вкладки "Расписание" -->
+              <div class="tab-content" id="tabGroupLessons">
+                <div class="lessons-list-full">
+                  <!-- ... список уроков ... -->
+                </div>
+                <!-- КНОПКА "Назначить урок" -->
+                <button class="btn btn-primary mt-2">
+                  <i class="fas fa-calendar-plus"></i> Назначить урок
+                </button>
+              </div>
         </div>
         <div class="tab-content active" id="tabGroupInfo">
           <form id="groupInfoForm" class="form-card">
             <div class="form-grid">
               <div class="form-group">
-                <label>Название</label>
-                <input id="editGroupName" value="Группа A">
+                <label for="editGroupName">Название</label>
+                <input type="text" id="editGroupName" value="Группа A" required>
               </div>
               <div class="form-group">
-                <label>Предмет</label>
-                <input id="editGroupSubject" value="Математика">
+                <label for="editGroupSubject">Предмет</label>
+                <input type="text" id="editGroupSubject" value="Математика">
               </div>
             </div>
           </form>
         </div>
         <div class="tab-content" id="tabGroupStudents">
           <div class="students-list-full">
-            <div class="student-full-item">
-              <span><strong>Иван Иванов</strong> (10 л.)</span>
-              <span>Иван Иванович +7 999 123-45-67</span>
-              <button class="btn-icon remove-from-group"><i class="fas fa-times"></i></button>
-            </div>
-            <button class="btn btn-primary mt-2" id="addStudentToGroupBtn">
-              <i class="fas fa-plus"></i> Добавить ученика
-            </button>
+            <!-- Список учеников будет добавлен JS -->
+            <p class="no-students-tab">Нет учеников в группе</p>
           </div>
+          <button class="btn btn-primary mt-2" id="addStudentToGroupBtn">
+            <i class="fas fa-plus"></i> Добавить ученика
+          </button>
         </div>
         <div class="tab-content" id="tabGroupLessons">
-          <table>
-            <thead><tr><th>Дата</th><th>Тема</th></tr></thead>
-            <tbody>
-              <tr><td>15 апр, 14:00</td><td>Уравнения</td></tr>
-              <tr><td>17 апр, 16:00</td><td>Геометрия</td></tr>
-            </tbody>
-          </table>
+          <div class="lessons-list-full">
+            <!-- Список уроков будет добавлен JS -->
+            <p class="no-lessons-tab">Нет запланированных уроков</p>
+          </div>
+          <button class="btn btn-primary mt-2" id="scheduleLessonInGroupBtn">
+            <i class="fas fa-calendar-plus"></i> Назначить урок
+          </button>
         </div>
       </div>
       <div class="modal-footer">
@@ -592,6 +606,8 @@
 
 <!-- Подключение Supabase SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<!-- FullCalendar JS -->
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js'></script>
 
 <!-- Модули -->
 <script type="module" src="./modules/main.js"></script>

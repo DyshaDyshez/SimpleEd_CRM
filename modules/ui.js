@@ -4,7 +4,6 @@ import supabase from './supabaseClient.js';
 import { getTeacherProfile } from './auth.js';
 // DOM-элементы — кэшируем при первом вызове
 
-
 let _contentArea, _pageTitle, _teacherNameSpan, _userAvatar, _navLinks, _logoutBtn;
 
 function getDOMElements() {
