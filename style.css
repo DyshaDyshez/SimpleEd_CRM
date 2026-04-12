@@ -776,13 +776,13 @@ th {
 
 
 
-/* Ультимативный стиль для крестика в модальных окнах */
-.modal .modal-header .close-modal,
+/* Ультимативный крестик для модалок */
 .modal .close-modal,
+.modal-card .close-modal,
 .close-modal {
     background: transparent !important;
     border: none !important;
-    font-size: 28px !important;
+    font-size: 32px !important;
     font-weight: 300 !important;
     line-height: 1 !important;
     color: #8B7E6C !important;
