@@ -101,9 +101,12 @@ async function deleteGroupById(id) {
 
 // === ПОЛНАЯ КАРТОЧКА ===
 export async function openFullGroupCard(groupId) {
-  if (document.querySelector('.modal.group-full-details')) return;
-  const group = groupsList.find(g => g.id === groupId);
-  if (!group) return alert('Группа не найдена');
+    if (!groupsList.length) {
+        await fetchGroupsFull();
+      }
+      const group = groupsList.find(g => g.id === groupId);
+      if (!group) return alert('Группа не найдена');
+  
   const template = getTemplate('groupFullCard');
   const modal = template.content.cloneNode(true).querySelector('.modal');
   modal.classList.add('group-full-details');

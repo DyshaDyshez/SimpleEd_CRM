@@ -797,4 +797,75 @@ th {
     background: transparent !important;
 }
 
+
+/* Компактный календарь */
+#calendar {
+    max-width: 100%;
+    margin: 0 auto;
+    font-size: 0.85rem;
+}
+
+/* Уменьшаем высоту ячеек */
+.fc .fc-daygrid-day-frame {
+    min-height: auto !important;
+    height: auto !important;
+}
+
+.fc .fc-daygrid-day-events {
+    min-height: 2.5em !important;
+}
+
+/* Адаптация на мобильных */
+@media (max-width: 768px) {
+    .fc .fc-toolbar {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    .fc .fc-toolbar-title {
+        font-size: 1rem !important;
+    }
+    .fc .fc-button {
+        padding: 0.25rem 0.5rem !important;
+        font-size: 0.8rem !important;
+    }
+}
+
+/* Компактный календарь */
+#calendar {
+    max-width: 100%;
+    margin: 0 auto;
+    font-size: 0.85rem;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+.fc .fc-daygrid-day-frame {
+    min-height: auto !important;
+    height: auto !important;
+}
+.fc .fc-daygrid-day-events {
+    min-height: 2.5em !important;
+}
+@media (max-width: 768px) {
+    .fc .fc-toolbar { flex-direction: column; gap: 0.5rem; }
+    .fc .fc-toolbar-title { font-size: 1rem !important; }
+    .fc .fc-button { padding: 0.25rem 0.5rem !important; font-size: 0.8rem !important; }
+    #calendar { max-height: 60vh; }
+}
+
+.hidden {
+    display: none !important;
+}
+
+
+.btn-danger {
+    background: #d32f2f;
+    color: white;
+}
+.btn-danger:hover {
+    background: #b71c1c;
+}
+
+
+
+
 }

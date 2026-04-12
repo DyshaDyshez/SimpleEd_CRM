@@ -342,6 +342,59 @@ async function deleteStudentById(id) {
   }
 }
 
+
+export async function openStudentCard(studentId) {
+    // Загружаем данные ученика
+    const { data: student, error } = await supabase
+      .from('students')
+      .select('*')
+      .eq('id', studentId)
+      .single();
+  
+    if (error || !student) {
+      alert('Ученик не найден');
+      return;
+    }
+  
+    // Показываем модальное окно с информацией
+    const modal = document.createElement('div');
+    modal.className = 'modal student-card';
+    modal.innerHTML = `
+      <div class="modal-card">
+        <div class="modal-header">
+          <h2>${student.child_name}</h2>
+          <button class="close-modal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p><strong>Возраст:</strong> ${student.child_age || '—'}</p>
+          <p><strong>Родитель:</strong> ${student.parent_name || '—'}</p>
+          <p><strong>Телефон:</strong> ${student.phone_number || '—'}</p>
+          <p><strong>Заметка:</strong> ${student.parent_pain || '—'}</p>
+          <p><strong>Статус:</strong> ${student.status === 'active' ? 'Активен' : 'Неактивен'}</p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-primary close-modal">Закрыть</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  
+    modal.querySelectorAll('.close-modal').forEach(btn => {
+      btn.addEventListener('click', () => modal.remove());
+    });
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  }
+
+  // Экспорт для получения списка учеников для селекта
+export async function fetchStudentsForSelect() {
+    const { data, error } = await supabase
+      .from('students')
+      .select('id, child_name')
+      .eq('teacher_id', getCurrentUser().id)
+      .order('child_name');
+    if (error) throw error;
+    return data || [];
+  }
 // Экспортируем fetchGroupsForSelect, чтобы groups.js мог импортировать его.
 // Эта функция теперь находится в groups.js, но если вы хотите, чтобы она была здесь,
 // то уберите импорт сверху и раскомментируйте следующую строку:
