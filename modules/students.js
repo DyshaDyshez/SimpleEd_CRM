@@ -1,6 +1,6 @@
 // modules/students.js
 import supabase from './supabaseClient.js';
-import { getDOMElements, renderPage, showError, clearError } from './ui.js';
+import { getDOMElements, showError, clearError } from './ui.js';
 import { getCurrentUser } from './auth.js';
 import { fetchGroupsForSelect } from './groups.js';
 
@@ -164,28 +164,22 @@ async function deleteStudentById(id) {
   else await loadStudentsTable();
 }
 
-// ==================== КАРТОЧКА УЧЕНИКА (МОДАЛКА) ====================
+// ==================== КАРТОЧКА УЧЕНИКА (МОДАЛКА С ТРЕМЯ ВКЛАДКАМИ) ====================
 export async function openStudentCard(studentId) {
   document.querySelector('.modal.student-card')?.remove();
 
-  const { data: student, error } = await supabase
-    .from('students')
-    .select('*, student_groups(group_name)')
-    .eq('id', studentId)
-    .single();
-  if (error) return alert('Ученик не найден');
-
-  const [payments, lessons] = await Promise.all([
+  // Загружаем все данные параллельно
+  const [{ data: student }, { data: payments }, { data: lessons }] = await Promise.all([
+    supabase.from('students').select('*, student_groups(group_name)').eq('id', studentId).single(),
     supabase.from('payments').select('*').eq('student_id', studentId).order('payment_date', { ascending: false }),
     supabase.from('lessons').select('*').eq('student_id', studentId).order('lesson_date', { ascending: false })
   ]);
 
-  const paymentsData = payments.data || [];
-  const lessonsData = lessons.data || [];
+  if (!student) return alert('Ученик не найден');
 
+  const paymentsData = payments || [];
+  const lessonsData = lessons || [];
   const totalPaidLessons = paymentsData.reduce((sum, p) => sum + (p.lessons_paid || 0), 0);
-  const completedLessons = lessonsData.filter(l => l.status === 'completed').length;
-  const balance = totalPaidLessons - completedLessons;
 
   const modal = document.createElement('div');
   modal.className = 'modal student-card';
@@ -204,7 +198,7 @@ export async function openStudentCard(studentId) {
         ${renderStudentInfo(student)}
       </div>
       <div class="tab-content" id="studentPaymentsTab">
-        ${await renderPaymentsTab(studentId, paymentsData, balance)}
+        ${await renderPaymentsTab(studentId, paymentsData, totalPaidLessons)}
       </div>
       <div class="tab-content" id="studentLessonsTab">
         ${renderLessonsTab(lessonsData)}
@@ -213,18 +207,21 @@ export async function openStudentCard(studentId) {
   `;
   document.body.appendChild(modal);
 
+  // Переключение вкладок
   modal.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
       modal.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       modal.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
       tab.classList.add('active');
-      modal.querySelector(`#student${tab.dataset.tab.charAt(0).toUpperCase() + tab.dataset.tab.slice(1)}Tab`).classList.add('active');
+      const targetId = `student${tab.dataset.tab.charAt(0).toUpperCase() + tab.dataset.tab.slice(1)}Tab`;
+      modal.querySelector(`#${targetId}`).classList.add('active');
     });
   });
 
   modal.querySelector('.close-modal').addEventListener('click', () => modal.remove());
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 
+  // Кнопки
   modal.querySelector('#addPaymentBtn')?.addEventListener('click', () => showPaymentForm(studentId, modal));
   modal.querySelector('#editStudentFromCard')?.addEventListener('click', () => {
     modal.remove();
@@ -247,23 +244,17 @@ function renderStudentInfo(student) {
   `;
 }
 
-async function renderPaymentsTab(studentId, payments, balance) {
-  const statusIcon = balance > 0 ? '🟢' : balance < 0 ? '🔴' : '⚪';
-  const statusText = balance > 0 ? 'Оплачено вперёд' : balance < 0 ? 'Долг' : 'Оплачено ровно';
-
+async function renderPaymentsTab(studentId, payments, totalPaidLessons) {
   let html = `
     <div style="padding: 1rem;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-        <div>
-          <strong>Баланс уроков:</strong> <span style="font-size: 1.2rem;">${statusIcon} ${balance} урок(ов) (${statusText})</span>
-        </div>
+        <div><strong>Всего оплачено уроков:</strong> <span style="font-size:1.2rem;">${totalPaidLessons}</span></div>
         <button class="btn btn-primary btn-sm" id="addPaymentBtn"><i class="fas fa-plus"></i> Добавить платёж</button>
       </div>
-      <table style="width: 100%;">
+      <table style="width:100%;">
         <thead><tr><th>Дата</th><th>Сумма</th><th>Уроков</th><th>Период</th><th>Заметка</th><th>Статус</th></tr></thead>
         <tbody>
   `;
-
   if (payments.length) {
     payments.forEach(p => {
       const period = p.period_start ? `${p.period_start} – ${p.period_end}` : '—';
@@ -284,23 +275,24 @@ async function renderPaymentsTab(studentId, payments, balance) {
 }
 
 function renderLessonsTab(lessons) {
-  let html = `<div style="padding: 1rem;"><table style="width: 100%;"><thead><tr><th>Дата</th><th>Тема</th><th>Статус</th><th>Заметки</th></tr></thead><tbody>`;
-  if (lessons.length) {
+  let html = `<div style="padding:1rem;"><table style="width:100%;"><thead><tr><th>Дата</th><th>Тема</th><th>Статус</th><th>Заметки</th></tr></thead><tbody>`;
+  if (lessons && lessons.length) {
     lessons.forEach(l => {
       html += `<tr>
         <td>${new Date(l.lesson_date).toLocaleString('ru-RU')}</td>
         <td>${l.topic || '—'}</td>
-        <td>${l.status}</td>
+        <td>${l.status || '—'}</td>
         <td>${l.notes || '—'}</td>
       </tr>`;
     });
   } else {
-    html += '<tr><td colspan="4">Нет уроков</td></tr>';
+    html += '<tr><td colspan="4">Нет проведённых уроков</td></tr>';
   }
   html += `</tbody></table></div>`;
   return html;
 }
 
+// ==================== ФОРМА ДОБАВЛЕНИЯ ПЛАТЕЖА ====================
 async function showPaymentForm(studentId, parentModal) {
   const modal = document.createElement('div');
   modal.className = 'modal payment-form';
@@ -362,6 +354,7 @@ async function showPaymentForm(studentId, parentModal) {
   });
 }
 
+// Экспорт для других модулей
 export async function fetchStudentsForSelect() {
   const { data } = await supabase.from('students').select('id, child_name').eq('teacher_id', getCurrentUser().id).order('child_name');
   return data || [];
