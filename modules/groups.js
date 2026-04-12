@@ -1,12 +1,13 @@
 // modules/groups.js
+// ВРЕМЕННО: откат к стабильной версии с прямыми вызовами supabase
 
 import supabase from './supabaseClient.js';
-import { getDOMElements, getTemplate, renderPage, showError, clearError } from './ui.js';
+import { getDOMElements, getTemplate } from './ui.js';
 import { getCurrentUser } from './auth.js';
 
 // --- Состояние ---
 let groupsList = [];
-let groupsCurrentView = 'cards'; // 'cards' или 'table'
+let groupsCurrentView = 'cards';
 
 // --- Инициализация ---
 export async function initGroupsPage() {
@@ -14,11 +15,11 @@ export async function initGroupsPage() {
   try {
     await fetchGroupsFull();
     renderGroupsView();
-    bindGroupEvents(); // Привязываем события *после* рендера
+    bindGroupEvents();
     console.log("Страница групп инициализирована.");
   } catch (error) {
     console.error('Ошибка инициализации страницы групп:', error);
-    showError('contentArea', `Ошибка загрузки данных групп: ${error.message}`);
+    alert('Ошибка загрузки данных групп');
   }
 }
 
@@ -33,41 +34,36 @@ async function fetchGroupsFull() {
 
   if (error) throw error;
 
-  // Дополнительно загрузим информацию для карточек (ученики, след. урок)
   groupsList = await Promise.all(data.map(async (group) => {
-    // Загрузка учеников
-    const {  students } = await supabase
+    // Ученики
+    const { data: students } = await supabase
       .from('students')
       .select('id, child_name, child_age, parent_name, phone_number')
       .eq('group_id', group.id);
     group.students = students || [];
 
-    // Загрузка следующего урока
-    const now = new Date().toISOString();
-    const {  lessons } = await supabase
+    // Все уроки
+    const { data: lessons } = await supabase
       .from('lessons')
       .select('id, lesson_date, topic')
       .eq('group_id', group.id)
-      .gte('lesson_date', now)
-      .order('lesson_date', { ascending: true })
-      .limit(1);
-    group.nextLesson = lessons?.[0] || null; // Теперь это объект урока или null
+      .order('lesson_date', { ascending: true });
+    group.lessons = lessons || [];
+
+    const now = new Date().toISOString();
+    group.nextLesson = lessons?.find(l => l.lesson_date >= now) || null;
 
     return group;
   }));
 
-  console.log("Данные групп загружены и обогащены.");
+  console.log("Данные групп загружены.");
 }
 
 // --- Рендеринг ---
 function renderGroupsView() {
-  console.log("Рендеринг представления групп...");
   const { contentArea } = getDOMElements();
   const container = contentArea.querySelector('#groupsViewContainer');
-  if (!container) {
-    console.error("Контейнер #groupsViewContainer не найден!");
-    return;
-  }
+  if (!container) return;
 
   if (groupsCurrentView === 'cards') {
     renderGroupsAsCards(container);
@@ -77,76 +73,54 @@ function renderGroupsView() {
 }
 
 function renderGroupsAsCards(container) {
-  console.log("Рендеринг карточек групп...");
   container.innerHTML = '<div class="groups-grid"></div>';
   const grid = container.querySelector('.groups-grid');
-
   groupsList.forEach(group => {
-    const cardElement = createGroupCard(group);
-    grid.appendChild(cardElement);
+    const card = createGroupCard(group);
+    grid.appendChild(card);
   });
 }
 
 function renderGroupsAsTable(container) {
-  console.log("Рендеринг таблицы групп...");
   container.innerHTML = `
     <div class="table-responsive">
       <table>
-        <thead>
-          <tr>
-            <th>Название</th>
-            <th>Предмет</th>
-            <th>Учеников</th>
-            <th>Действия</th>
-          </tr>
-        </thead>
+        <thead><tr><th>Название</th><th>Предмет</th><th>Учеников</th><th></th></tr></thead>
         <tbody id="groupsTableBody"></tbody>
       </table>
     </div>
   `;
-  loadGroupsTableIntoExistingTbody();
+  loadGroupsTableBody();
 }
 
-async function loadGroupsTableIntoExistingTbody() {
+function loadGroupsTableBody() {
   const tbody = document.getElementById('groupsTableBody');
   if (!tbody) return;
+  tbody.innerHTML = groupsList.map(group => `
+    <tr>
+      <td>${group.group_name}</td>
+      <td>${group.subject || '—'}</td>
+      <td>${group.students.length}</td>
+      <td>
+        <button class="btn-icon delete-group" data-id="${group.id}" title="Удалить">
+          <i class="fas fa-trash"></i>
+        </button>
+      </td>
+    </tr>
+  `).join('') || '<tr><td colspan="4">Нет групп</td></tr>';
 
-  tbody.innerHTML = groupsList
-    .map(group => `
-      <tr>
-        <td>${group.group_name}</td>
-        <td>${group.subject || '—'}</td>
-        <td>${group.students.length}</td>
-        <td>
-          <button class="btn-icon delete-group" data-id="${group.id}" title="Удалить">
-            <i class="fas fa-trash"></i>
-          </button>
-        </td>
-      </tr>
-    `)
-    .join('') || '<tr><td colspan="4">Нет групп</td></tr>';
-
-  // Привязка событий удаления к НОВОМУ содержимому tbody
   tbody.querySelectorAll('.delete-group').forEach(btn => {
-    btn.removeEventListener('click', handleDeleteGroupClickFromTable); // Удаляем старый обработчик
-    btn.addEventListener('click', handleDeleteGroupClickFromTable); // Добавляем новый
+    btn.addEventListener('click', () => deleteGroupById(btn.dataset.id));
   });
 }
 
-function handleDeleteGroupClickFromTable(e) {
-    const id = e.target.closest('button').dataset.id;
-    deleteGroupById(id);
-}
-
-// --- Создание карточки ---
+// --- Создание карточки группы (проверенная версия) ---
 function createGroupCard(group) {
-  console.log("Создание карточки для группы:", group.group_name);
   const template = getTemplate('groupCard');
   const clone = template.content.cloneNode(true);
   const card = clone.querySelector('.group-card');
-  card.dataset.id = group.id; // Храним ID в data-атрибуте
+  card.dataset.id = group.id;
 
-  // Заполняем карточку данными
   card.querySelector('.group-name').textContent = group.group_name;
   card.querySelector('.group-subject').textContent = group.subject || 'Без предмета';
   card.querySelector('.students-count').textContent = group.students.length;
@@ -154,49 +128,34 @@ function createGroupCard(group) {
   const nextLessonEl = card.querySelector('.next-lesson');
   if (group.nextLesson) {
     nextLessonEl.textContent = new Date(group.nextLesson.lesson_date).toLocaleString('ru-RU', {
-      day: 'numeric',
-      month: 'long',
-      hour: '2-digit',
-      minute: '2-digit'
+      day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'
     });
   } else {
     nextLessonEl.textContent = 'Нет занятий';
   }
 
-  // Заполняем превью учеников
   const preview = card.querySelector('.group-students-preview');
-  preview.innerHTML = ''; // Очищаем "Нет учеников"
+  preview.innerHTML = '';
   const studentsToShow = group.students.slice(0, 3);
-  if (studentsToShow.length > 0) {
-    studentsToShow.forEach(student => {
+  if (studentsToShow.length) {
+    studentsToShow.forEach(s => {
       const item = document.createElement('div');
       item.className = 'student-preview-item';
-      item.innerHTML = `<span>${student.child_name}</span><span>${student.child_age || '—'} лет</span>`;
+      item.innerHTML = `<span>${s.child_name}</span><span>${s.child_age || '—'} лет</span>`;
       preview.appendChild(item);
     });
   } else {
     preview.innerHTML = '<div class="no-students">Нет учеников</div>';
   }
 
-  // --- Привязка событий к элементам карточки ---
-  // Используем replaceWith для "обнуления" обработчиков, как раньше
-  const openBtn = card.querySelector('.open-full-group');
-  openBtn.replaceWith(openBtn.cloneNode(true));
+  // Привязка событий
   card.querySelector('.open-full-group').addEventListener('click', () => openFullGroupCard(group.id));
-
-  const deleteBtn = card.querySelector('.delete-group');
-  deleteBtn.replaceWith(deleteBtn.cloneNode(true));
-  card.querySelector('.delete-group').addEventListener('click', async (e) => {
+  card.querySelector('.delete-group').addEventListener('click', (e) => {
     e.stopPropagation();
-    if (confirm('Удалить группу "' + group.group_name + '"?')) {
-      await deleteGroupById(group.id);
-      await fetchGroupsFull();
-      renderGroupsView();
+    if (confirm(`Удалить группу "${group.group_name}"?`)) {
+      deleteGroupById(group.id);
     }
   });
-
-  const scheduleBtn = card.querySelector('.schedule-lesson-btn');
-  scheduleBtn.replaceWith(scheduleBtn.cloneNode(true));
   card.querySelector('.schedule-lesson-btn').addEventListener('click', (e) => {
     e.stopPropagation();
     openScheduleLessonModal(group.id, group.group_name);
@@ -205,336 +164,171 @@ function createGroupCard(group) {
   return card;
 }
 
-// --- Взаимодействие ---
-
-// Удаление группы
+// --- Удаление группы ---
 async function deleteGroupById(id) {
-  console.log("Удаление группы с ID:", id);
   const { error } = await supabase.from('student_groups').delete().eq('id', id);
   if (error) {
-    console.error('Ошибка удаления группы:', error);
     alert(`Ошибка удаления: ${error.message}`);
     return;
   }
-  console.log("Группа удалена.");
-  // Обновить список после удаления
   await fetchGroupsFull();
   renderGroupsView();
 }
 
-// Открытие модального окна полной карточки
+// --- Открытие полной карточки ---
 export async function openFullGroupCard(groupId) {
-  console.log("Открытие полной карточки для группы ID:", groupId);
-  // Проверка, открыто ли уже окно
-  if (document.querySelector('.modal.group-full-details')) {
-      console.warn("Модальное окно уже открыто.");
-      return;
+  if (document.querySelector('.modal.group-full-details')) return;
+
+  const group = groupsList.find(g => g.id === groupId);
+  if (!group) {
+    alert('Группа не найдена');
+    return;
   }
 
-  try {
-    const group = groupsList.find(g => g.id === groupId);
-    if (!group) {
-      alert('Группа не найдена в кэше. Перезагрузите страницу.');
-      return;
-    }
+  const template = getTemplate('groupFullCard');
+  const clone = template.content.cloneNode(true);
+  const modal = clone.querySelector('.modal');
+  modal.classList.add('group-full-details');
+  document.body.appendChild(modal);
 
-    const template = getTemplate('groupFullCard'); // <-- ПРАВИЛЬНО
-    const clone = template.content.cloneNode(true);
-    const modal = clone.querySelector('.modal');
-    modal.classList.add('group-full-details');
-    document.body.appendChild(modal);
+  document.getElementById('fullGroupName').textContent = group.group_name;
 
-    // Заполнение заголовка
-    document.getElementById('fullGroupName').textContent = group.group_name;
+  populateInfoTab(modal, group);
+  populateStudentsTab(modal, group);
+  populateLessonsTab(modal, group);
 
-    // --- Заполнение вкладок ---
-    await populateTabInfo(modal, group);
-    await populateTabStudents(modal, groupId);
-    await populateTabLessons(modal, groupId);
-
-    // --- Инициализация переключения вкладок ---
-    initializeTabSwitching(modal);
-
-    // --- Обработчик сохранения ---
-    const saveBtn = modal.querySelector('#saveFullGroup');
-    saveBtn.replaceWith(saveBtn.cloneNode(true)); // Обнулить
-    modal.querySelector('#saveFullGroup').addEventListener('click', async () => {
-        await saveGroupInfo(modal, groupId);
+  // Вкладки
+  modal.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const tabName = tab.dataset.tab;
+      modal.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      modal.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      tab.classList.add('active');
+      modal.querySelector(`#tabGroup${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`).classList.add('active');
     });
+  });
 
-    // --- Обработчики закрытия ---
-    modal.querySelector('.close-modal').addEventListener('click', () => modal.remove());
-    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  // Сохранение
+  modal.querySelector('#saveFullGroup').addEventListener('click', async () => {
+    const name = modal.querySelector('#editGroupName').value.trim();
+    if (!name) return alert('Введите название');
+    const subject = modal.querySelector('#editGroupSubject').value.trim() || null;
+    const { error } = await supabase
+      .from('student_groups')
+      .update({ group_name: name, subject })
+      .eq('id', groupId);
+    if (error) return alert(`Ошибка: ${error.message}`);
+    modal.remove();
+    await fetchGroupsFull();
+    renderGroupsView();
+  });
 
-  } catch (error) {
-    console.error('Ошибка открытия полной карточки:', error);
-    alert(`Ошибка: ${error.message}`);
-  }
+  modal.querySelector('.close-modal').addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 }
 
-async function populateTabInfo(modal, group) {
-  const infoTab = modal.querySelector('#tabGroupInfo');
-  // Форма уже в шаблоне, просто заполняем поля
+function populateInfoTab(modal, group) {
   modal.querySelector('#editGroupName').value = group.group_name;
   modal.querySelector('#editGroupSubject').value = group.subject || '';
 }
 
-async function populateTabStudents(modal, groupId) {
-  const studentsTab = modal.querySelector('#tabGroupStudents');
-  const group = groupsList.find(g => g.id === groupId);
-  const studentsListDiv = studentsTab.querySelector('.students-list-full');
-  const noStudentsP = studentsTab.querySelector('.no-students-tab');
+function populateStudentsTab(modal, group) {
+  const container = modal.querySelector('#tabGroupStudents .students-list-full');
+  const noMsg = modal.querySelector('#tabGroupStudents .no-students-tab');
 
-  if (group && group.students && group.students.length > 0) {
-    studentsListDiv.innerHTML = group.students.map(s => `
+  if (group.students.length) {
+    container.innerHTML = group.students.map(s => `
       <div class="student-full-item" data-student-id="${s.id}">
-        <div class="student-info">
-            <strong>${s.child_name}</strong> (${s.child_age || '—'} л.)
-            <br>
-            <small>${s.parent_name || ''} ${s.phone_number || ''}</small>
-        </div>
-        <button class="btn-icon remove-from-group" title="Убрать из группы">
-          <i class="fas fa-times"></i>
-        </button>
+        <div class="student-info"><strong>${s.child_name}</strong> (${s.child_age || '—'} л.)<br><small>${s.parent_name || ''} ${s.phone_number || ''}</small></div>
+        <button class="btn-icon remove-student"><i class="fas fa-times"></i></button>
       </div>
     `).join('');
-    noStudentsP.classList.add('hidden'); // Скрываем сообщение "Нет учеников"
-    // Привязка обработчиков удаления
-    studentsListDiv.querySelectorAll('.remove-from-group').forEach(btn => {
-        btn.replaceWith(btn.cloneNode(true)); // Обнулить
-        btn = studentsListDiv.querySelector(`.student-full-item[data-student-id="${btn.closest('.student-full-item').dataset.studentId}"] .remove-from-group`); // Найти заново
-        btn.addEventListener('click', async (e) => {
-            const studentId = e.target.closest('.student-full-item').dataset.studentId;
-            await removeFromGroup(studentId, groupId);
-            // Перезагрузить вкладку после удаления
-            await populateTabStudents(modal, groupId);
-        });
+    noMsg.classList.add('hidden');
+
+    container.querySelectorAll('.remove-student').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const id = e.currentTarget.closest('.student-full-item').dataset.studentId;
+        await supabase.from('students').update({ group_id: null }).eq('id', id);
+        group.students = group.students.filter(s => s.id !== id);
+        populateStudentsTab(modal, group);
+      });
     });
   } else {
-    studentsListDiv.innerHTML = '';
-    noStudentsP.classList.remove('hidden'); // Показываем сообщение "Нет учеников"
+    container.innerHTML = '';
+    noMsg.classList.remove('hidden');
   }
 
-  // Привязка кнопки добавления
-  const addBtn = modal.querySelector('#addStudentToGroupBtn');
-  addBtn.replaceWith(addBtn.cloneNode(true)); // Обнулить
-  modal.querySelector('#addStudentToGroupBtn').addEventListener('click', () => showAddStudentModal(groupId, modal));
+  modal.querySelector('#addStudentToGroupBtn').onclick = () => showAddStudentModal(group.id, modal);
 }
 
-async function populateTabLessons(modal, groupId) {
-  const lessonsTab = modal.querySelector('#tabGroupLessons');
-  const group = groupsList.find(g => g.id === groupId);
-  const lessonsListDiv = lessonsTab.querySelector('.lessons-list-full');
-  const noLessonsP = lessonsTab.querySelector('.no-lessons-tab');
+function populateLessonsTab(modal, group) {
+  const container = modal.querySelector('#tabGroupLessons .lessons-list-full');
+  const noMsg = modal.querySelector('#tabGroupLessons .no-lessons-tab');
 
-  if (group && group.lessons && group.lessons.length > 0) {
-    lessonsListDiv.innerHTML = group.lessons.map(l => `
+  if (group.lessons.length) {
+    container.innerHTML = group.lessons.map(l => `
       <div class="lesson-full-item" data-lesson-id="${l.id}">
-        <div class="lesson-info">
-            <strong>${new Date(l.lesson_date).toLocaleString('ru-RU')}</strong>
-            <br>
-            <small>Тема: ${l.topic || '—'}</small>
-        </div>
-        <button class="btn-icon delete-lesson" title="Удалить урок">
-          <i class="fas fa-trash"></i>
-        </button>
+        <div class="lesson-info"><strong>${new Date(l.lesson_date).toLocaleString('ru-RU')}</strong><br><small>${l.topic || '—'}</small></div>
+        <button class="btn-icon delete-lesson"><i class="fas fa-trash"></i></button>
       </div>
     `).join('');
-    noLessonsP.classList.add('hidden'); // Скрываем сообщение "Нет уроков"
-    // Привязка обработчиков удаления урока
-    lessonsListDiv.querySelectorAll('.delete-lesson').forEach(btn => {
-        btn.replaceWith(btn.cloneNode(true)); // Обнулить
-        btn = lessonsListDiv.querySelector(`.lesson-full-item[data-lesson-id="${btn.closest('.lesson-full-item').dataset.lessonId}"] .delete-lesson`); // Найти заново
-        btn.addEventListener('click', async (e) => {
-            const lessonId = e.target.closest('.lesson-full-item').dataset.lessonId;
-            await deleteLesson(lessonId, groupId);
-            // Перезагрузить вкладку после удаления
-            await populateTabLessons(modal, groupId);
-        });
+    noMsg.classList.add('hidden');
+
+    container.querySelectorAll('.delete-lesson').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const lessonId = e.currentTarget.closest('.lesson-full-item').dataset.lessonId;
+        if (!confirm('Удалить урок?')) return;
+        await supabase.from('lessons').delete().eq('id', lessonId);
+        group.lessons = group.lessons.filter(l => l.id !== lessonId);
+        populateLessonsTab(modal, group);
+      });
     });
   } else {
-    lessonsListDiv.innerHTML = '';
-    noLessonsP.classList.remove('hidden'); // Показываем сообщение "Нет уроков"
+    container.innerHTML = '';
+    noMsg.classList.remove('hidden');
   }
 
-  // Привязка кнопки планирования
-  const scheduleBtn = modal.querySelector('#scheduleLessonInGroupBtn');
-  scheduleBtn.replaceWith(scheduleBtn.cloneNode(true)); // Обнулить
-  modal.querySelector('#scheduleLessonInGroupBtn').addEventListener('click', () => openScheduleLessonModal(groupId, modal.querySelector('#fullGroupName').textContent));
+  modal.querySelector('#scheduleLessonInGroupBtn').onclick = () => openScheduleLessonModal(group.id, group.group_name);
 }
 
-function initializeTabSwitching(modal) {
-    const tabs = modal.querySelectorAll('.tab');
-    tabs.forEach(tab => {
-        tab.replaceWith(tab.cloneNode(true)); // Обнулить
-        tab = modal.querySelector(`.tab[data-tab="${tab.dataset.tab}"]`); // Найти заново
-        tab.addEventListener('click', () => {
-            // Убираем активные классы
-            tabs.forEach(t => t.classList.remove('active'));
-            modal.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-
-            // Добавляем активный класс нажатой вкладке
-            tab.classList.add('active');
-
-            // Показываем соответствующий контент
-            const tabName = tab.dataset.tab;
-            const targetId = `tabGroup${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`;
-            const targetContent = modal.querySelector(`#${targetId}`);
-            if (targetContent) {
-                targetContent.classList.add('active');
-            }
-        });
-    });
-}
-
-async function saveGroupInfo(modal, groupId) {
-  const name = modal.querySelector('#editGroupName').value.trim();
-  const subject = modal.querySelector('#editGroupSubject').value.trim() || null;
-
-  if (!name) {
-     alert("Введите название группы.");
-     return;
-  }
-
-  try {
-    const { error } = await supabase
-      .from('student_groups')
-      .update({ group_name: name, subject: subject })
-      .eq('id', groupId);
-
-    if (error) throw error;
-
-    modal.remove(); // Закрываем окно
-    await fetchGroupsFull(); // Обновляем данные
-    renderGroupsView(); // Перерисовываем список
-    console.log("Информация о группе сохранена.");
-  } catch (error) {
-    console.error('Ошибка сохранения:', error);
-    alert(`Ошибка сохранения: ${error.message}`);
-  }
-}
-
-async function removeFromGroup(studentId, groupId) {
-  try {
-    const { error } = await supabase
-      .from('students')
-      .update({ group_id: null })
-      .eq('id', studentId);
-
-    if (error) throw error;
-    console.log("Ученик удалён из группы.");
-
-    // Обновить кэш
-    const group = groupsList.find(g => g.id === groupId);
-    if (group) {
-        group.students = group.students.filter(s => s.id !== studentId);
-    }
-  } catch (error) {
-    console.error('Ошибка удаления из группы:', error);
-    alert(`Ошибка: ${error.message}`);
-  }
-}
-
-async function deleteLesson(lessonId, groupId) {
-  try {
-    const { error } = await supabase
-      .from('lessons')
-      .delete()
-      .eq('id', lessonId);
-
-    if (error) throw error;
-    console.log("Урок удалён.");
-
-    // Обновить кэш
-    const group = groupsList.find(g => g.id === groupId);
-    if (group) {
-        group.lessons = group.lessons.filter(l => l.id !== lessonId);
-        // Обновить nextLesson, если удалили ближайший
-        if (group.nextLesson && group.nextLesson.id === lessonId) {
-             group.nextLesson = group.lessons
-                .filter(l => new Date(l.lesson_date) >= new Date())
-                .sort((a, b) => new Date(a.lesson_date) - new Date(b.lesson_date))[0] || null;
-        }
-    }
-  } catch (error) {
-    console.error('Ошибка удаления урока:', error);
-    alert(`Ошибка: ${error.message}`);
-  }
-}
-
+// --- Добавление ученика ---
 async function showAddStudentModal(groupId, parentModal) {
-  // Проверка на дублирование
-  if (document.querySelector('.modal.add-student')) {
-      console.warn("Модальное окно добавления ученика уже открыто.");
-      return;
-  }
+  const { data: students } = await supabase
+    .from('students')
+    .select('id, child_name')
+    .eq('teacher_id', getCurrentUser().id)
+    .is('group_id', null);
 
-  try {
-    const {  students } = await supabase
-      .from('students')
-      .select('id, child_name')
-      .eq('teacher_id', getCurrentUser().id)
-      .is('group_id', null); // Только свободные
+  if (!students?.length) return alert('Нет свободных учеников');
 
-    if (!students || students.length === 0) {
-        alert("Нет свободных учеников для добавления.");
-        return;
-    }
-
-    const modal = document.createElement('div');
-    modal.className = 'modal add-student';
-    modal.innerHTML = `
-      <div class="modal-card">
-        <h3>Добавить ученика в группу</h3>
-        <select id="studentSelect">
-          ${students.map(s => `<option value="${s.id}">${s.child_name}</option>`).join('')}
-        </select>
-        <div class="modal-actions">
-          <button class="btn btn-primary" id="confirmAddStudent">Добавить</button>
-          <button class="btn btn-secondary close-modal">Отмена</button>
-        </div>
+  const modal = document.createElement('div');
+  modal.className = 'modal add-student';
+  modal.innerHTML = `
+    <div class="modal-card">
+      <h3>Добавить ученика</h3>
+      <select id="studentSelect">${students.map(s => `<option value="${s.id}">${s.child_name}</option>`).join('')}</select>
+      <div class="modal-actions">
+        <button class="btn btn-primary" id="confirmAddStudent">Добавить</button>
+        <button class="btn btn-secondary close-modal">Отмена</button>
       </div>
-    `;
-    document.body.appendChild(modal);
+    </div>
+  `;
+  document.body.appendChild(modal);
 
-    modal.querySelector('.close-modal').addEventListener('click', () => modal.remove());
-
-    modal.querySelector('#confirmAddStudent').addEventListener('click', async () => {
-        const studentId = modal.querySelector('#studentSelect').value;
-        if (!studentId) return;
-
-        try {
-          const { error } = await supabase
-            .from('students')
-            .update({ group_id: groupId })
-            .eq('id', studentId);
-
-          if (error) throw error;
-
-          modal.remove();
-          parentModal.remove(); // Закрываем оба окна
-          openFullGroupCard(groupId); // Открываем заново для обновления
-          console.log("Ученик добавлен в группу.");
-        } catch (error) {
-          console.error('Ошибка добавления ученика:', error);
-          alert(`Ошибка: ${error.message}`);
-        }
-    });
-
-  } catch (error) {
-    console.error('Ошибка загрузки учеников для добавления:', error);
-    alert(`Ошибка: ${error.message}`);
-  }
+  modal.querySelector('.close-modal').addEventListener('click', () => modal.remove());
+  modal.querySelector('#confirmAddStudent').addEventListener('click', async () => {
+    const studentId = modal.querySelector('#studentSelect').value;
+    await supabase.from('students').update({ group_id: groupId }).eq('id', studentId);
+    modal.remove();
+    parentModal.remove();
+    await fetchGroupsFull();
+    openFullGroupCard(groupId);
+  });
 }
 
-// --- Модальное окно быстрого планирования (для карточки и вкладки) ---
+// --- Назначение урока (ИСПРАВЛЕНО) ---
 function openScheduleLessonModal(groupId, groupName) {
-  console.log("Открытие модального окна планирования для группы:", groupName);
-  // Проверка на дублирование
-  if (document.querySelector('.modal.schedule-lesson')) {
-      console.warn("Модальное окно планирования уже открыто.");
-      return;
-  }
+  if (document.querySelector('.modal.schedule-lesson')) return;
 
   const modal = document.createElement('div');
   modal.className = 'modal schedule-lesson';
@@ -543,11 +337,11 @@ function openScheduleLessonModal(groupId, groupName) {
       <h3>Назначить урок для "${groupName}"</h3>
       <form id="quickLessonForm">
         <div class="form-group">
-          <label for="lessonDate">Дата и время *</label>
+          <label>Дата и время *</label>
           <input type="datetime-local" id="lessonDate" required>
         </div>
         <div class="form-group">
-          <label for="lessonTopic">Тема</label>
+          <label>Тема</label>
           <input type="text" id="lessonTopic" placeholder="Например: Уравнения">
         </div>
         <div id="quickLessonFormError" class="error-message"></div>
@@ -565,101 +359,100 @@ function openScheduleLessonModal(groupId, groupName) {
   modal.querySelector('#quickLessonForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const errorDiv = modal.querySelector('#quickLessonFormError');
-    errorDiv.textContent = ''; // Очистить предыдущие ошибки
+    const lessonDate = modal.querySelector('#lessonDate').value;
+    const topic = modal.querySelector('#lessonTopic').value.trim() || null;
 
-    const lessonDateValue = modal.querySelector('#lessonDate').value;
-    const topicValue = modal.querySelector('#lessonTopic').value.trim();
-
-    if (!lessonDateValue) {
-      errorDiv.textContent = 'Выберите дату и время.';
+    if (!lessonDate) {
+      errorDiv.textContent = 'Выберите дату и время';
       return;
     }
 
-    const lessonData = {
-      teacher_id: getCurrentUser().id,
-      group_id: groupId,
-      lesson_date: lessonDateValue,
-      topic: topicValue || null,
-    };
-
     try {
-      const { data: insertedLesson, error } = await supabase.from('lessons').insert(lessonData).select().single();
+      const { error } = await supabase
+        .from('lessons')
+        .insert({
+          teacher_id: getCurrentUser().id,
+          group_id: groupId,
+          lesson_date: lessonDate,
+          topic
+        });
       if (error) throw error;
-
       modal.remove();
+      await fetchGroupsFull();
+      renderGroupsView();
 
-      // Обновить кэш для открытой группы (если модальное окно открыто из неё)
-      const group = groupsList.find(g => g.id === groupId);
-      if (group) {
-          group.lessons = group.lessons || [];
-          group.lessons.push(insertedLesson);
-          // Обновить nextLesson, если новый урок ближайший
-          if (!group.nextLesson || new Date(insertedLesson.lesson_date) < new Date(group.nextLesson.lesson_date)) {
-              group.nextLesson = insertedLesson;
-          }
+      // Обновить открытую карточку, если есть
+      const openModal = document.querySelector('.modal.group-full-details');
+      if (openModal) {
+        const updatedGroup = groupsList.find(g => g.id === groupId);
+        if (updatedGroup) populateLessonsTab(openModal, updatedGroup);
       }
-
-      // Обновить список групп, чтобы отразилось "Следующее занятие"
-      renderGroupsView(); // Перерисовываем карточки
-
-      // Если модальное окно было открыто из вкладки "Расписание" полной карточки, обновим и её
-      const openGroupModal = document.querySelector('.modal.group-full-details');
-      if (openGroupModal && openGroupModal.querySelector('.tab.active[data-tab="lessons"]')) {
-          const currentGroupId = Array.from(document.querySelectorAll('.group-card')).find(card => card.contains(openGroupModal.closest('body') ? openGroupModal : null))?.dataset.id;
-          if (currentGroupId == groupId) { // Проверяем, что открыта карточка той же группы
-              await populateTabLessons(openGroupModal, groupId);
-          }
-      }
-
-      console.log("Урок создан.");
     } catch (err) {
-      console.error('Ошибка создания урока:', err);
       errorDiv.textContent = `Ошибка: ${err.message}`;
     }
   });
 }
 
+// --- Создание группы (упрощённо) ---
+function showCreateGroupModal() {
+  const modal = document.createElement('div');
+  modal.className = 'modal create-group';
+  modal.innerHTML = `
+    <div class="modal-card">
+      <h3>Создать группу</h3>
+      <form id="createGroupForm">
+        <div class="form-group"><label>Название *</label><input id="newGroupName" required></div>
+        <div class="form-group"><label>Предмет</label><input id="newGroupSubject"></div>
+        <div id="createGroupError" class="error-message"></div>
+        <div class="modal-actions">
+          <button type="submit" class="btn btn-primary">Создать</button>
+          <button type="button" class="btn btn-secondary close-modal">Отмена</button>
+        </div>
+      </form>
+    </div>
+  `;
+  document.body.appendChild(modal);
 
-// --- Обработчики событий ---
-function handleCreateGroupClick() {
-    // Логика создания группы (открытие формы, отправка данных в Supabase)
-    // ...
-    console.log("Кнопка 'Создать группу' нажата.");
-    alert("Создание группы пока не реализовано в этом сниппете.");
-}
-
-function handleViewSwitchClick(e) {
-    groupsCurrentView = e.target.dataset.view;
-    // Обновляем активные кнопки
-    const viewSwitchers = e.currentTarget.parentElement.querySelectorAll('[data-view]');
-    viewSwitchers.forEach(b => b.classList.remove('active'));
-    e.target.classList.add('active');
-    // Перерисовываем представление
-    renderGroupsView();
-    console.log("Вид изменён на:", groupsCurrentView);
-}
-
-// Привязка основных событий (вызывается один раз при инициализации)
-function bindGroupEvents() {
-  console.log("Привязка событий на странице групп...");
-  const { contentArea } = getDOMElements();
-
-  // Кнопка "Создать группу"
-  const addGroupBtn = contentArea.querySelector('#addGroupBtn');
-  if (addGroupBtn) {
-    addGroupBtn.removeEventListener('click', handleCreateGroupClick); // Удаляем старый
-    addGroupBtn.addEventListener('click', handleCreateGroupClick);
-  }
-
-  // Переключение вида
-  const viewSwitchers = contentArea.querySelectorAll('[data-view]');
-  viewSwitchers.forEach(btn => {
-    btn.removeEventListener('click', handleViewSwitchClick); // Удаляем старый
-    btn.addEventListener('click', handleViewSwitchClick);
+  modal.querySelector('.close-modal').addEventListener('click', () => modal.remove());
+  modal.querySelector('#createGroupForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = modal.querySelector('#newGroupName').value.trim();
+    const subject = modal.querySelector('#newGroupSubject').value.trim() || null;
+    const errorDiv = modal.querySelector('#createGroupError');
+    if (!name) {
+      errorDiv.textContent = 'Введите название';
+      return;
+    }
+    try {
+      await supabase.from('student_groups').insert({
+        teacher_id: getCurrentUser().id,
+        group_name: name,
+        subject
+      });
+      modal.remove();
+      await fetchGroupsFull();
+      renderGroupsView();
+    } catch (err) {
+      errorDiv.textContent = `Ошибка: ${err.message}`;
+    }
   });
 }
 
-// --- Экспорт ---
+// --- Привязка событий страницы ---
+function bindGroupEvents() {
+  const { contentArea } = getDOMElements();
+  contentArea.querySelector('#addGroupBtn')?.addEventListener('click', showCreateGroupModal);
+  contentArea.querySelectorAll('[data-view]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      groupsCurrentView = e.target.dataset.view;
+      contentArea.querySelectorAll('[data-view]').forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+      renderGroupsView();
+    });
+  });
+}
+
+// --- Экспорт для других модулей ---
 export async function fetchGroupsForSelect() {
   const { data } = await supabase
     .from('student_groups')

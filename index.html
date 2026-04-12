@@ -5,310 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>SimpleEd CRM — Панель учителя</title>
   <link rel="stylesheet" href="style.css">
-  <!-- Font Awesome -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <!-- FullCalendar Stylesheet -->
-  <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/main.min.css' rel='stylesheet' />
-
-
-  <!DOCTYPE html>
-  <html lang="ru">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>SimpleEd CRM — Панель учителя</title>
-    <link rel="stylesheet" href="style.css">
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- FullCalendar Stylesheet -->
-    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/main.min.css' rel='stylesheet' />
-  </head>
-  <body>
-  
-  <div id="app">
-    <!-- Сайдбар -->
-    <aside class="sidebar">
-      <div class="logo">
-        <i class="fas fa-book-open"></i>
-        <span>SimpleEd</span>
-      </div>
-  
-      <nav>
-        <a href="#" data-page="dashboard" class="nav-link active">
-          <i class="fas fa-home"></i>
-          <span>Главная</span>
-        </a>
-        <a href="#" data-page="students" class="nav-link">
-          <i class="fas fa-users"></i>
-          <span>Ученики</span>
-        </a>
-        <a href="#" data-page="groups" class="nav-link">
-          <i class="fas fa-th-large"></i>
-          <span>Группы</span>
-        </a>
-        <a href="#" data-page="schedule" class="nav-link">
-          <i class="fas fa-calendar-alt"></i>
-          <span>Расписание</span>
-        </a>
-        <a href="#" data-page="finance" class="nav-link">
-          <i class="fas fa-coins"></i>
-          <span>Финансы</span>
-        </a>
-        <a href="#" data-page="notes" class="nav-link">
-          <i class="fas fa-sticky-note"></i>
-          <span>Заметки</span>
-        </a>
-      </nav>
-  
-      <div class="sidebar-footer">
-        <button id="supportBtn" class="btn-sm">
-          <i class="fas fa-headset"></i>
-          <span>Поддержка</span>
-        </button>
-        <button id="logoutBtn" class="btn-sm logout-btn">
-          <i class="fas fa-sign-out-alt"></i>
-          <span>Выйти</span>
-        </button>
-      </div>
-    </aside>
-  
-    <!-- Основной контент -->
-    <main class="main-content">
-      <header>
-        <h1 id="pageTitle">Загрузка...</h1>
-        <div class="user-profile">
-          <span id="teacherNameDisplay">Учитель</span>
-          <span id="userAvatar" class="avatar">U</span>
-        </div>
-      </header>
-  
-      <div id="contentArea">
-        <!-- Контент будет вставляться сюда -->
-      </div>
-    </main>
-  </div>
-  
-  <!-- ШАБЛОНЫ -->
-  <template id="dashboardTemplate">
-    <div class="dashboard-grid">
-      <div class="card stat-card">
-        <h3><i class="fas fa-chart-bar"></i> Статистика</h3>
-        <div class="stat-value">0 <span>уроков</span></div>
-        <div class="stat-money">0 ₽</div>
-      </div>
-      <div class="card note-card">
-        <h3><i class="fas fa-sticky-note"></i> Заметка</h3>
-        <p>Мои ученики</p>
-      </div>
-      <div class="card">
-        <h3><i class="fas fa-clock"></i> Ближайшие уроки</h3>
-        <div class="lesson-list">
-          <div class="lesson-item group">
-            <span class="time">Ср, 14:00</span>
-            <div class="info">
-              <strong>Математика</strong>
-              <span>Группа "Начинающие"</span>
-            </div>
-          </div>
-          <p class="text-muted mt-2">Нет запланированных уроков на сегодня</p>
-        </div>
-      </div>
-    </div>
-  </template>
-  
-  <template id="studentsTemplate">
-    <div class="form-card">
-      <h2>Ученики</h2>
-      <button id="addStudentBtn" class="btn btn-primary mb-3">
-        <i class="fas fa-plus"></i> Добавить ученика
-      </button>
-      <div id="studentFormContainer" class="hidden">
-        <!-- Форма будет рендериться через JS -->
-      </div>
-      <div class="table-responsive">
-        <table>
-          <thead>
-            <tr>
-              <th>Имя</th>
-              <th>Родитель</th>
-              <th>Телефон</th>
-              <th>Группа</th>
-              <th>Статус</th>
-              <th>Действия</th>
-            </tr>
-          </thead>
-          <tbody id="studentsTableBody">
-            <tr><td colspan="6">Загрузка...</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </template>
-  
-  <template id="groupsTemplate">
-    <div class="form-card">
-      <div class="card-header">
-        <h2>Группы</h2>
-        <div class="flex gap-2">
-          <button id="addGroupBtn" class="btn btn-primary">
-            <i class="fas fa-plus"></i> Создать группу
-          </button>
-          <div class="view-switcher flex gap-1">
-              <button data-view="cards" class="btn-sm active">Карты</button>
-              <button data-view="table" class="btn-sm">Таблица</button>
-          </div>
-        </div>
-      </div>
-      <div id="groupFormContainer" class="hidden">
-        <!-- Форма группы будет рендериться через JS -->
-      </div>
-      <div id="groupsViewContainer">
-        <!-- Карточки или таблица будут вставлены сюда -->
-      </div>
-    </div>
-  </template>
-  
-  <template id="scheduleTemplate">
-      <div class="form-card">
-        <div class="card-header">
-          <h2>Расписание занятий</h2>
-          <button id="assignLessonBtn" class="btn btn-primary">
-            <i class="fas fa-calendar-plus"></i> Назначить урок
-          </button>
-        </div>
-        <!-- Контейнер для календаря -->
-      <div id='calendar'></div>
-      <!-- Форма создания/редактирования урока (изначально скрыта) -->
-      <div id="lessonFormContainer" class="hidden">
-        <!-- Будет заполняться JS -->
-      </div>
-        <div id="lessonFormContainer" class="hidden">
-          <!-- Форма создания/редактирования урока будет вставляться сюда -->
-        </div>
-        <div class="schedule-controls">
-          <!-- Фильтры: выбор даты, группы и т.д. -->
-          <input type="date" id="filterDateStart">
-          <input type="date" id="filterDateEnd">
-          <select id="filterGroupId">
-            <option value="">Все группы</option>
-            <!-- Опции будут добавлены JS -->
-          </select>
-          <button id="applyFiltersBtn" class="btn btn-sm">Применить</button>
-        </div>
-        <div class="schedule-list" id="scheduleList">
-          <!-- Уроки будут вставляться сюда -->
-          <p>Загрузка...</p>
-        </div>
-      </div>
-    </template>
-  
-  <template id="financeTemplate">
-    <div class="form-card">
-      <h2>Финансы</h2>
-      <p>В разработке</p>
-    </div>
-  </template>
-  
-  <template id="notesTemplate">
-    <div class="form-card">
-      <h2>Заметки</h2>
-      <p>В разработке</p>
-    </div>
-  </template>
-  
-  <!-- Шаблон карточки группы -->
-  <template id="groupCardTemplate">
-    <div class="group-card">
-      <div class="group-card-header">
-        <h3 class="group-name">Название группы</h3>
-        <span class="group-subject">Предмет</span>
-      </div>
-      <div class="group-stats">
-        <span><strong class="students-count">0</strong> учеников</span>
-        <span>Следующее занятие: <span class="next-lesson">Нет занятий</span></span>
-      </div>
-      <div class="group-students-preview">
-        <!-- Студенты будут добавлены динамически -->
-        <div class="no-students">Нет учеников</div>
-      </div>
-      <div class="group-card-footer">
-        <button class="btn-icon open-full-group" title="Открыть">
-          <i class="fas fa-eye"></i>
-        </button>
-        <button class="btn-icon schedule-lesson-btn" title="Назначить урок">
-          <i class="fas fa-calendar-plus"></i>
-        </button>
-        <button class="btn-icon delete-group" title="Удалить">
-          <i class="fas fa-trash"></i>
-        </button>
-      </div>
-    </div>
-  </template>
-  
-  <!-- Шаблон полной карточки группы -->
-  <template id="groupFullCardTemplate">
-    <div class="modal">
-      <div class="modal-card">
-        <div class="modal-header">
-          <h2 id="fullGroupName">Группа</h2>
-          <button class="close-modal">&times;</button>
-        </div>
-        <div class="modal-body">
-          <div class="tabs">
-            <button class="tab active" data-tab="info">Информация</button>
-            <button class="tab" data-tab="students">Ученики</button>
-            <button class="tab" data-tab="lessons">Расписание</button>
-          </div>
-          <div class="tab-content active" id="tabGroupInfo">
-            <form id="groupInfoForm" class="form-card">
-              <div class="form-grid">
-                <div class="form-group">
-                  <label for="editGroupName">Название</label>
-                  <input type="text" id="editGroupName" value="Группа A" required>
-                </div>
-                <div class="form-group">
-                  <label for="editGroupSubject">Предмет</label>
-                  <input type="text" id="editGroupSubject" value="Математика">
-                </div>
-              </div>
-            </form>
-          </div>
-          <div class="tab-content" id="tabGroupStudents">
-            <div class="students-list-full">
-              <!-- Список учеников будет добавлен JS -->
-              <p class="no-students-tab">Нет учеников в группе</p>
-            </div>
-            <button class="btn btn-primary mt-2" id="addStudentToGroupBtn">
-              <i class="fas fa-plus"></i> Добавить ученика
-            </button>
-          </div>
-          <div class="tab-content" id="tabGroupLessons">
-            <div class="lessons-list-full">
-              <!-- Список уроков будет добавлен JS -->
-              <p class="no-lessons-tab">Нет запланированных уроков</p>
-            </div>
-            <button class="btn btn-primary mt-2" id="scheduleLessonInGroupBtn">
-              <i class="fas fa-calendar-plus"></i> Назначить урок
-            </button>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button id="saveFullGroup" class="btn btn-success">Сохранить</button>
-        </div>
-      </div>
-    </div>
-  </template>
-  
-  <!-- Подключение Supabase SDK -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <!-- FullCalendar JS -->
-  <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js'></script>
-  
-  <!-- Модули -->
-  <script type="module" src="./modules/main.js"></script>
-  
-  </body>
-  </html>
 
 </head>
 <body>
@@ -457,38 +153,35 @@
 </template>
 
 <template id="scheduleTemplate">
-    <div class="form-card">
-      <div class="card-header">
-        <h2>Расписание занятий</h2>
-        <button id="assignLessonBtn" class="btn btn-primary">
-          <i class="fas fa-calendar-plus"></i> Назначить урок
-        </button>
-      </div>
-      <!-- Контейнер для календаря -->
+  <div class="form-card">
+    <div class="card-header">
+      <h2>Расписание занятий</h2>
+      <button id="assignLessonBtn" class="btn btn-primary">
+        <i class="fas fa-calendar-plus"></i> Назначить урок
+      </button>
+    </div>
+    <!-- Контейнер для календаря -->
     <div id='calendar'></div>
     <!-- Форма создания/редактирования урока (изначально скрыта) -->
     <div id="lessonFormContainer" class="hidden">
       <!-- Будет заполняться JS -->
     </div>
-      <div id="lessonFormContainer" class="hidden">
-        <!-- Форма создания/редактирования урока будет вставляться сюда -->
-      </div>
-      <div class="schedule-controls">
-        <!-- Фильтры: выбор даты, группы и т.д. -->
-        <input type="date" id="filterDateStart">
-        <input type="date" id="filterDateEnd">
-        <select id="filterGroupId">
-          <option value="">Все группы</option>
-          <!-- Опции будут добавлены JS -->
-        </select>
-        <button id="applyFiltersBtn" class="btn btn-sm">Применить</button>
-      </div>
-      <div class="schedule-list" id="scheduleList">
-        <!-- Уроки будут вставляться сюда -->
-        <p>Загрузка...</p>
-      </div>
+    <div class="schedule-controls">
+      <!-- Фильтры: выбор даты, группы и т.д. -->
+      <input type="date" id="filterDateStart">
+      <input type="date" id="filterDateEnd">
+      <select id="filterGroupId">
+        <option value="">Все группы</option>
+        <!-- Опции будут добавлены JS -->
+      </select>
+      <button id="applyFiltersBtn" class="btn btn-sm">Применить</button>
     </div>
-  </template>
+    <div class="schedule-list" id="scheduleList">
+      <!-- Уроки будут вставляться сюда -->
+      <p>Загрузка...</p>
+    </div>
+  </div>
+</template>
 
 <template id="financeTemplate">
   <div class="form-card">
@@ -543,26 +236,9 @@
       </div>
       <div class="modal-body">
         <div class="tabs">
-            <div class="tab-content" id="tabGroupStudents">
-                <div class="students-list-full">
-                  <!-- ... список учеников ... -->
-                </div>
-                <!-- КНОПКА "Добавить ученика" -->
-                <button class="btn btn-primary mt-2">
-                  <i class="fas fa-plus"></i> Добавить ученика
-                </button>
-              </div>
-              
-              <!-- Внутри вкладки "Расписание" -->
-              <div class="tab-content" id="tabGroupLessons">
-                <div class="lessons-list-full">
-                  <!-- ... список уроков ... -->
-                </div>
-                <!-- КНОПКА "Назначить урок" -->
-                <button class="btn btn-primary mt-2">
-                  <i class="fas fa-calendar-plus"></i> Назначить урок
-                </button>
-              </div>
+          <button class="tab active" data-tab="info">Информация</button>
+          <button class="tab" data-tab="students">Ученики</button>
+          <button class="tab" data-tab="lessons">Расписание</button>
         </div>
         <div class="tab-content active" id="tabGroupInfo">
           <form id="groupInfoForm" class="form-card">
