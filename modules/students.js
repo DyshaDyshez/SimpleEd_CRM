@@ -1,107 +1,107 @@
 // modules/students.js
-
-// Импортируем зависимости
 import supabase from './supabaseClient.js';
-import { getDOMElements, getTemplate, renderPage, showError, clearError } from './ui.js';
+import { getDOMElements, renderPage, showError, clearError } from './ui.js';
 import { getCurrentUser } from './auth.js';
-// Импортируем функцию получения групп из groups.js
 import { fetchGroupsForSelect } from './groups.js';
 
-// Глобальное состояние для модуля учеников
 let editingStudentId = null;
-let groupsList = []; // Список групп для селекта
+let groupsList = [];
 
-/**
- * Инициализирует страницу учеников: загружает группы, рендерит форму и таблицу.
- */
+// ==================== ИНИЦИАЛИЗАЦИЯ СТРАНИЦЫ ====================
 export async function initStudentsPage() {
   try {
-    // Загружаем список групп для селекта в форме
     groupsList = await fetchGroupsForSelect();
-
-    // Рендерим пустую или предзаполненную форму (в случае редактирования)
     renderStudentForm();
-
-    // Загружаем и отображаем таблицу учеников
     await loadStudentsTable();
-
-    // Привязываем обработчик к кнопке "Добавить ученика"
     bindAddStudentButton();
   } catch (error) {
-    console.error('Ошибка инициализации страницы учеников:', error);
-    showError('contentArea', 'Ошибка загрузки данных учеников.');
+    console.error(error);
+    showError('contentArea', 'Ошибка загрузки учеников.');
   }
 }
 
-/**
- * Привязывает событие к кнопке "Добавить ученика".
- */
+// ==================== ТАБЛИЦА УЧЕНИКОВ ====================
+async function loadStudentsTable() {
+  const tbody = document.getElementById('studentsTableBody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="6">Загрузка...</td></tr>';
+
+  try {
+    const { data, error } = await supabase
+      .from('students')
+      .select(`
+        id, child_name, parent_name, phone_number, child_age, group_id, status, parent_pain,
+        student_groups ( group_name )
+      `)
+      .eq('teacher_id', getCurrentUser().id)
+      .order('child_name');
+
+    if (error) throw error;
+
+    if (!data?.length) {
+      tbody.innerHTML = '<tr><td colspan="6">Нет учеников</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = data.map(s => {
+      const groupName = s.student_groups?.group_name || '—';
+      const statusClass = s.status === 'active' ? 'badge active' : 'badge inactive';
+      const statusText = s.status === 'active' ? 'Активен' : 'Неактивен';
+      return `
+        <tr>
+          <td>${s.child_name}</td>
+          <td>${s.parent_name || '—'}</td>
+          <td>${s.phone_number || '—'}</td>
+          <td>${groupName}</td>
+          <td><span class="${statusClass}">${statusText}</span></td>
+          <td>
+            <button class="btn-icon open-student" data-id="${s.id}" title="Открыть"><i class="fas fa-eye"></i></button>
+            <button class="btn-icon edit-student" data-id="${s.id}" title="Редактировать"><i class="fas fa-edit"></i></button>
+            <button class="btn-icon delete-student" data-id="${s.id}" title="Удалить"><i class="fas fa-trash"></i></button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    document.querySelectorAll('.open-student').forEach(btn => btn.addEventListener('click', () => openStudentCard(btn.dataset.id)));
+    document.querySelectorAll('.edit-student').forEach(btn => btn.addEventListener('click', () => loadAndEditStudent(btn.dataset.id)));
+    document.querySelectorAll('.delete-student').forEach(btn => btn.addEventListener('click', () => deleteStudentById(btn.dataset.id)));
+
+  } catch (error) {
+    console.error(error);
+    tbody.innerHTML = `<tr><td colspan="6">Ошибка: ${error.message}</td></tr>`;
+  }
+}
+
 function bindAddStudentButton() {
-  const addBtn = document.getElementById('addStudentBtn');
-  if (addBtn) {
-    addBtn.addEventListener('click', () => {
-      editingStudentId = null; // Сбрасываем ID редактируемого ученика
-      renderStudentForm(); // Рендерим форму для добавления
-      document.getElementById('studentFormContainer').classList.remove('hidden');
-    });
-  }
+  document.getElementById('addStudentBtn')?.addEventListener('click', () => {
+    editingStudentId = null;
+    renderStudentForm();
+    document.getElementById('studentFormContainer').classList.remove('hidden');
+  });
 }
 
-/**
- * Рендерит форму для добавления или редактирования ученика.
- * @param {Object|null} student - Объект ученика для редактирования. Если null, форма для добавления.
- */
+// ==================== ФОРМА ДОБАВЛЕНИЯ/РЕДАКТИРОВАНИЯ ====================
 function renderStudentForm(student = null) {
   const container = document.getElementById('studentFormContainer');
   if (!container) return;
 
   const isEditing = !!student;
-  const title = isEditing ? 'Редактировать ученика' : 'Добавить ученика';
-  const submitButtonText = isEditing ? 'Сохранить изменения' : 'Создать ученика';
-
-  // Генерируем HTML формы
   container.innerHTML = `
     <div class="form-card">
-      <h3>${title}</h3>
+      <h3>${isEditing ? 'Редактировать ученика' : 'Добавить ученика'}</h3>
       <form id="studentForm">
         <div class="form-grid">
-          <div class="form-group">
-            <label for="childName">Имя *</label>
-            <input type="text" id="childName" value="${student?.child_name || ''}" required>
-          </div>
-          <div class="form-group">
-            <label for="parentName">Родитель</label>
-            <input type="text" id="parentName" value="${student?.parent_name || ''}">
-          </div>
-          <div class="form-group">
-            <label for="phoneNumber">Телефон</label>
-            <input type="tel" id="phoneNumber" value="${student?.phone_number || ''}">
-          </div>
-          <div class="form-group">
-            <label for="childAge">Возраст</label>
-            <input type="number" id="childAge" value="${student?.child_age || ''}" min="0" max="100">
-          </div>
-          <div class="form-group">
-            <label for="groupId">Группа</label>
-            <select id="groupId">
-              <option value="">Без группы</option>
-              ${groupsList.map(g => `<option value="${g.id}" ${student?.group_id === g.id ? 'selected' : ''}>${g.group_name}</option>`).join('')}
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="status">Статус</label>
-            <select id="status">
-              <option value="active" ${student?.status === 'active' ? 'selected' : ''}>Активен</option>
-              <option value="inactive" ${student?.status === 'inactive' ? 'selected' : ''}>Неактивен</option>
-            </select>
-          </div>
+          <div class="form-group"><label>Имя *</label><input id="childName" value="${student?.child_name || ''}" required></div>
+          <div class="form-group"><label>Родитель</label><input id="parentName" value="${student?.parent_name || ''}"></div>
+          <div class="form-group"><label>Телефон</label><input id="phoneNumber" value="${student?.phone_number || ''}"></div>
+          <div class="form-group"><label>Возраст</label><input type="number" id="childAge" value="${student?.child_age || ''}"></div>
+          <div class="form-group"><label>Группа</label><select id="groupId"><option value="">Без группы</option>${groupsList.map(g => `<option value="${g.id}" ${student?.group_id === g.id ? 'selected' : ''}>${g.group_name}</option>`).join('')}</select></div>
+          <div class="form-group"><label>Статус</label><select id="status"><option value="active" ${student?.status === 'active' ? 'selected' : ''}>Активен</option><option value="inactive" ${student?.status === 'inactive' ? 'selected' : ''}>Неактивен</option></select></div>
         </div>
-        <div class="form-group">
-          <label for="parentPain">Заметка</label>
-          <textarea id="parentPain" rows="3">${student?.parent_pain || ''}</textarea>
-        </div>
+        <div class="form-group"><label>Заметка</label><textarea id="parentPain" rows="3">${student?.parent_pain || ''}</textarea></div>
         <div class="form-actions">
-          <button type="submit" class="btn btn-primary">${submitButtonText}</button>
+          <button type="submit" class="btn btn-primary">${isEditing ? 'Сохранить' : 'Создать'}</button>
           <button type="button" class="btn btn-secondary" id="cancelStudentForm">Отмена</button>
         </div>
         <div id="studentFormError" class="error-message"></div>
@@ -109,306 +109,260 @@ function renderStudentForm(student = null) {
     </div>
   `;
 
-  // Привязываем обработчик отправки формы
-  const form = document.getElementById('studentForm');
-  if (form) {
-    form.addEventListener('submit', saveStudent);
-  }
-
-  // Привязываем обработчик отмены
-  const cancelBtn = document.getElementById('cancelStudentForm');
-  if (cancelBtn) {
-    cancelBtn.addEventListener('click', () => {
-      container.classList.add('hidden');
-      clearError('studentFormError'); // Очищаем ошибки при отмене
-    });
-  }
+  document.getElementById('studentForm').addEventListener('submit', saveStudent);
+  document.getElementById('cancelStudentForm').addEventListener('click', () => {
+    container.classList.add('hidden');
+    clearError('studentFormError');
+  });
 }
 
-/**
- * Обрабатывает отправку формы (создание или обновление ученика).
- * @param {Event} e - Событие submit формы.
- */
 async function saveStudent(e) {
   e.preventDefault();
-  clearError('studentFormError'); // Очищаем предыдущие ошибки
-
+  clearError('studentFormError');
   const errorDiv = document.getElementById('studentFormError');
-  if (!errorDiv) return;
 
-  // Собираем данные из формы
   const childName = document.getElementById('childName').value.trim();
-  const parentName = document.getElementById('parentName').value.trim() || null;
-  const phoneNumber = document.getElementById('phoneNumber').value.trim() || null;
-  const childAgeInput = document.getElementById('childAge').value;
-  const groupId = document.getElementById('groupId').value || null;
-  const status = document.getElementById('status').value;
-  const parentPain = document.getElementById('parentPain').value.trim() || null;
+  if (!childName) return showError('studentFormError', 'Введите имя');
 
-  // Валидация
-  if (!childName) {
-    showError('studentFormError', 'Введите имя ученика.');
-    return;
-  }
-
-  // Преобразование возраста
-  let childAge = null;
-  if (childAgeInput) {
-    const ageNum = parseInt(childAgeInput, 10);
-    if (isNaN(ageNum) || ageNum <= 0) {
-      showError('studentFormError', 'Введите корректный возраст.');
-      return;
-    }
-    childAge = ageNum;
-  }
-
-  // Подготовка данных для сохранения
   const studentData = {
-    teacher_id: getCurrentUser().id, // Убедимся, что ученик привязан к текущему учителю
+    teacher_id: getCurrentUser().id,
     child_name: childName,
-    parent_name: parentName,
-    phone_number: phoneNumber,
-    child_age: childAge,
-    group_id: groupId,
-    status: status,
-    parent_pain: parentPain,
+    parent_name: document.getElementById('parentName').value.trim() || null,
+    phone_number: document.getElementById('phoneNumber').value.trim() || null,
+    child_age: parseInt(document.getElementById('childAge').value) || null,
+    group_id: document.getElementById('groupId').value || null,
+    status: document.getElementById('status').value,
+    parent_pain: document.getElementById('parentPain').value.trim() || null
   };
 
   let res;
   if (editingStudentId) {
-    // Обновление существующего ученика
-    res = await supabase
-      .from('students')
-      .update(studentData)
-      .eq('id', editingStudentId);
+    res = await supabase.from('students').update(studentData).eq('id', editingStudentId);
   } else {
-    // Создание нового ученика
-    res = await supabase
-      .from('students')
-      .insert(studentData);
+    res = await supabase.from('students').insert(studentData);
   }
 
-  if (res.error) {
-    showError('studentFormError', `Ошибка: ${res.error.message}`);
-    return;
-  }
+  if (res.error) return showError('studentFormError', res.error.message);
 
-  // Успешно сохранено
   document.getElementById('studentFormContainer').classList.add('hidden');
-  editingStudentId = null; // Сбрасываем ID редактируемого ученика
-  await loadStudentsTable(); // Обновляем таблицу
-  clearError('studentFormError'); // Очищаем ошибки
+  editingStudentId = null;
+  await loadStudentsTable();
 }
 
-/**
- * Загружает список учеников текущего учителя и отображает их в таблице.
- */
-async function loadStudentsTable() {
-  const tbody = document.getElementById('studentsTableBody');
-  if (!tbody) return;
+async function loadAndEditStudent(id) {
+  const { data, error } = await supabase.from('students').select('*').eq('id', id).single();
+  if (error) return alert('Ошибка загрузки');
+  editingStudentId = id;
+  renderStudentForm(data);
+  document.getElementById('studentFormContainer').classList.remove('hidden');
+}
 
-  // Показываем индикатор загрузки
-  tbody.innerHTML = '<tr><td colspan="6">Загрузка...</td></tr>';
+async function deleteStudentById(id) {
+  if (!confirm('Удалить ученика?')) return;
+  const { error } = await supabase.from('students').delete().eq('id', id);
+  if (error) alert(error.message);
+  else await loadStudentsTable();
+}
 
-  try {
-    // Запрашиваем данные учеников с именами групп (через JOIN)
-    const { data, error } = await supabase
-      .from('students')
-      .select(`
-        id,
-        child_name,
-        parent_name,
-        phone_number,
-        child_age,
-        group_id,
-        status,
-        parent_pain,
-        student_groups ( group_name )
-      `)
-      .eq('teacher_id', getCurrentUser().id)
-      .order('child_name', { ascending: true });
+// ==================== КАРТОЧКА УЧЕНИКА (МОДАЛКА) ====================
+export async function openStudentCard(studentId) {
+  document.querySelector('.modal.student-card')?.remove();
 
-    if (error) {
-      throw error;
-    }
+  const { data: student, error } = await supabase
+    .from('students')
+    .select('*, student_groups(group_name)')
+    .eq('id', studentId)
+    .single();
+  if (error) return alert('Ученик не найден');
 
-    if (!data || data.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6">Нет учеников</td></tr>';
+  const [payments, lessons] = await Promise.all([
+    supabase.from('payments').select('*').eq('student_id', studentId).order('payment_date', { ascending: false }),
+    supabase.from('lessons').select('*').eq('student_id', studentId).order('lesson_date', { ascending: false })
+  ]);
+
+  const paymentsData = payments.data || [];
+  const lessonsData = lessons.data || [];
+
+  const totalPaidLessons = paymentsData.reduce((sum, p) => sum + (p.lessons_paid || 0), 0);
+  const completedLessons = lessonsData.filter(l => l.status === 'completed').length;
+  const balance = totalPaidLessons - completedLessons;
+
+  const modal = document.createElement('div');
+  modal.className = 'modal student-card';
+  modal.innerHTML = `
+    <div class="modal-card" style="max-width: 750px;">
+      <div class="modal-header">
+        <h2>${student.child_name}</h2>
+        <button class="close-modal">&times;</button>
+      </div>
+      <div class="tabs">
+        <button class="tab active" data-tab="info">Информация</button>
+        <button class="tab" data-tab="payments">Оплаты</button>
+        <button class="tab" data-tab="lessons">Уроки</button>
+      </div>
+      <div class="tab-content active" id="studentInfoTab">
+        ${renderStudentInfo(student)}
+      </div>
+      <div class="tab-content" id="studentPaymentsTab">
+        ${await renderPaymentsTab(studentId, paymentsData, balance)}
+      </div>
+      <div class="tab-content" id="studentLessonsTab">
+        ${renderLessonsTab(lessonsData)}
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  modal.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      modal.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      modal.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      tab.classList.add('active');
+      modal.querySelector(`#student${tab.dataset.tab.charAt(0).toUpperCase() + tab.dataset.tab.slice(1)}Tab`).classList.add('active');
+    });
+  });
+
+  modal.querySelector('.close-modal').addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+  modal.querySelector('#addPaymentBtn')?.addEventListener('click', () => showPaymentForm(studentId, modal));
+  modal.querySelector('#editStudentFromCard')?.addEventListener('click', () => {
+    modal.remove();
+    loadAndEditStudent(studentId);
+    document.getElementById('studentFormContainer').classList.remove('hidden');
+  });
+}
+
+function renderStudentInfo(student) {
+  return `
+    <div style="padding: 1rem;">
+      <p><strong>Возраст:</strong> ${student.child_age || '—'}</p>
+      <p><strong>Родитель:</strong> ${student.parent_name || '—'}</p>
+      <p><strong>Телефон:</strong> ${student.phone_number || '—'}</p>
+      <p><strong>Группа:</strong> ${student.student_groups?.group_name || '—'}</p>
+      <p><strong>Статус:</strong> ${student.status === 'active' ? 'Активен' : 'Неактивен'}</p>
+      <p><strong>Заметка:</strong> ${student.parent_pain || '—'}</p>
+      <button class="btn btn-primary btn-sm" id="editStudentFromCard"><i class="fas fa-edit"></i> Редактировать</button>
+    </div>
+  `;
+}
+
+async function renderPaymentsTab(studentId, payments, balance) {
+  const statusIcon = balance > 0 ? '🟢' : balance < 0 ? '🔴' : '⚪';
+  const statusText = balance > 0 ? 'Оплачено вперёд' : balance < 0 ? 'Долг' : 'Оплачено ровно';
+
+  let html = `
+    <div style="padding: 1rem;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <div>
+          <strong>Баланс уроков:</strong> <span style="font-size: 1.2rem;">${statusIcon} ${balance} урок(ов) (${statusText})</span>
+        </div>
+        <button class="btn btn-primary btn-sm" id="addPaymentBtn"><i class="fas fa-plus"></i> Добавить платёж</button>
+      </div>
+      <table style="width: 100%;">
+        <thead><tr><th>Дата</th><th>Сумма</th><th>Уроков</th><th>Период</th><th>Заметка</th><th>Статус</th></tr></thead>
+        <tbody>
+  `;
+
+  if (payments.length) {
+    payments.forEach(p => {
+      const period = p.period_start ? `${p.period_start} – ${p.period_end}` : '—';
+      html += `<tr>
+        <td>${p.payment_date}</td>
+        <td>${p.amount ? p.amount + ' ₽' : '—'}</td>
+        <td>${p.lessons_paid || '—'}</td>
+        <td>${period}</td>
+        <td>${p.description || '—'}</td>
+        <td>${p.status === 'paid' ? '✅' : '❌'}</td>
+      </tr>`;
+    });
+  } else {
+    html += '<tr><td colspan="6">Нет платежей</td></tr>';
+  }
+  html += `</tbody></table></div>`;
+  return html;
+}
+
+function renderLessonsTab(lessons) {
+  let html = `<div style="padding: 1rem;"><table style="width: 100%;"><thead><tr><th>Дата</th><th>Тема</th><th>Статус</th><th>Заметки</th></tr></thead><tbody>`;
+  if (lessons.length) {
+    lessons.forEach(l => {
+      html += `<tr>
+        <td>${new Date(l.lesson_date).toLocaleString('ru-RU')}</td>
+        <td>${l.topic || '—'}</td>
+        <td>${l.status}</td>
+        <td>${l.notes || '—'}</td>
+      </tr>`;
+    });
+  } else {
+    html += '<tr><td colspan="4">Нет уроков</td></tr>';
+  }
+  html += `</tbody></table></div>`;
+  return html;
+}
+
+async function showPaymentForm(studentId, parentModal) {
+  const modal = document.createElement('div');
+  modal.className = 'modal payment-form';
+  modal.innerHTML = `
+    <div class="modal-card">
+      <h3>Добавить платёж</h3>
+      <form id="paymentForm">
+        <div class="form-group"><label>Дата *</label><input type="date" id="paymentDate" required></div>
+        <div class="form-group"><label>Сумма (₽)</label><input type="number" id="paymentAmount" step="0.01"></div>
+        <div class="form-group"><label>Количество уроков</label><input type="number" id="paymentLessons"></div>
+        <div class="form-group"><label>Начало периода</label><input type="date" id="periodStart"></div>
+        <div class="form-group"><label>Конец периода</label><input type="date" id="periodEnd"></div>
+        <div class="form-group"><label>Заметка</label><input id="paymentDescription"></div>
+        <div class="form-group"><label>Статус</label><select id="paymentStatus"><option value="paid">Оплачен</option><option value="cancelled">Отменён</option></select></div>
+        <div class="modal-actions">
+          <button type="submit" class="btn btn-primary">Сохранить</button>
+          <button type="button" class="btn btn-secondary close-modal">Отмена</button>
+        </div>
+        <div id="paymentFormError" class="error-message"></div>
+      </form>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  modal.querySelector('.close-modal').addEventListener('click', () => modal.remove());
+  modal.querySelector('#paymentForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errorDiv = modal.querySelector('#paymentFormError');
+    const amount = modal.querySelector('#paymentAmount').value;
+    const lessons = modal.querySelector('#paymentLessons').value;
+    const periodStart = modal.querySelector('#periodStart').value;
+    const periodEnd = modal.querySelector('#periodEnd').value;
+
+    if (!amount && !lessons && !periodStart) {
+      errorDiv.textContent = 'Укажите сумму, уроки или период';
       return;
     }
 
-    // Генерируем строки таблицы
-    tbody.innerHTML = data.map(student => {
-      // Получаем имя группы из связанной таблицы
-      const groupName = student.student_groups?.group_name || '—';
-      // Определяем класс бейджа статуса
-      const statusClass = student.status === 'active' ? 'badge active' : 'badge inactive';
-      const statusText = student.status === 'active' ? 'Активен' : 'Неактивен';
-
-      return `
-        <tr>
-          <td>${student.child_name}</td>
-          <td>${student.parent_name || '—'}</td>
-          <td>${student.phone_number || '—'}</td>
-          <td>${groupName}</td>
-          <td><span class="${statusClass}">${statusText}</span></td>
-          <td>
-            <button class="btn-icon edit-student" data-id="${student.id}" title="Редактировать">
-              <i class="fas fa-edit"></i>
-            </button>
-            <button class="btn-icon" style="color: #d32f2f;" data-id="${student.id}" title="Удалить" onclick="confirmAndDeleteStudent('${student.id}')">
-              <i class="fas fa-trash"></i>
-            </button>
-          </td>
-        </tr>
-      `;
-    }).join('');
-
-    // Привязываем обработчики к кнопкам "Редактировать" и "Удалить"
-    document.querySelectorAll('.edit-student').forEach(button => {
-      button.addEventListener('click', async () => {
-        const id = button.dataset.id;
-        await loadAndEditStudent(id);
-      });
-    });
-
-    // Глобальная функция для подтверждения удаления (из-за inline onclick)
-    window.confirmAndDeleteStudent = async (id) => {
-        if (confirm('Удалить этого ученика?')) {
-            await deleteStudentById(id);
-        }
+    const paymentData = {
+      teacher_id: getCurrentUser().id,
+      student_id: studentId,
+      payment_date: modal.querySelector('#paymentDate').value,
+      amount: amount || null,
+      lessons_paid: lessons ? parseInt(lessons) : null,
+      period_start: periodStart || null,
+      period_end: periodEnd || null,
+      description: modal.querySelector('#paymentDescription').value || null,
+      status: modal.querySelector('#paymentStatus').value
     };
 
-  } catch (error) {
-    console.error('Ошибка загрузки таблицы учеников:', error);
-    tbody.innerHTML = `<tr><td colspan="6">Ошибка: ${error.message}</td></tr>`;
-  }
-}
-
-/**
- * Загружает данные ученика по ID и открывает форму для редактирования.
- * @param {string} id - ID ученика.
- */
-async function loadAndEditStudent(id) {
-  try {
-    const { data: student, error } = await supabase
-      .from('students')
-      .select('*')
-      .eq('id', id)
-      .single(); // single() т.к. ожидаем одну запись
-
-    if (error) throw error;
-
-    if (!student) {
-      alert('Ученик не найден.');
+    const { error } = await supabase.from('payments').insert(paymentData);
+    if (error) {
+      errorDiv.textContent = error.message;
       return;
     }
-
-    // Проверяем, принадлежит ли ученик текущему учителю
-    if (student.teacher_id !== getCurrentUser().id) {
-      alert('У вас нет прав для редактирования этого ученика.');
-      return;
-    }
-
-    editingStudentId = id;
-    renderStudentForm(student); // Передаём данные ученика в форму
-    document.getElementById('studentFormContainer').classList.remove('hidden');
-
-  } catch (error) {
-    console.error('Ошибка загрузки данных ученика для редактирования:', error);
-    alert(`Ошибка: ${error.message}`);
-  }
+    modal.remove();
+    parentModal.remove();
+    openStudentCard(studentId);
+  });
 }
 
-/**
- * Удаляет ученика по ID и обновляет таблицу.
- * @param {string} id - ID ученика для удаления.
- */
-async function deleteStudentById(id) {
-  try {
-    const { error } = await supabase
-      .from('students')
-      .delete()
-      .eq('id', id);
-
-    if (error) throw error;
-
-    // Обновляем таблицу после успешного удаления
-    await loadStudentsTable();
-
-  } catch (error) {
-    console.error('Ошибка удаления ученика:', error);
-    alert(`Ошибка при удалении: ${error.message}`);
-  }
-}
-
-
-export async function openStudentCard(studentId) {
-    // Загружаем данные ученика
-    const { data: student, error } = await supabase
-      .from('students')
-      .select('*')
-      .eq('id', studentId)
-      .single();
-  
-    if (error || !student) {
-      alert('Ученик не найден');
-      return;
-    }
-  
-    // Показываем модальное окно с информацией
-    const modal = document.createElement('div');
-    modal.className = 'modal student-card';
-    modal.innerHTML = `
-      <div class="modal-card">
-        <div class="modal-header">
-          <h2>${student.child_name}</h2>
-          <button class="close-modal">&times;</button>
-        </div>
-        <div class="modal-body">
-          <p><strong>Возраст:</strong> ${student.child_age || '—'}</p>
-          <p><strong>Родитель:</strong> ${student.parent_name || '—'}</p>
-          <p><strong>Телефон:</strong> ${student.phone_number || '—'}</p>
-          <p><strong>Заметка:</strong> ${student.parent_pain || '—'}</p>
-          <p><strong>Статус:</strong> ${student.status === 'active' ? 'Активен' : 'Неактивен'}</p>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-primary close-modal">Закрыть</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(modal);
-  
-    modal.querySelectorAll('.close-modal').forEach(btn => {
-      btn.addEventListener('click', () => modal.remove());
-    });
-    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
-  }
-
-  // Экспорт для получения списка учеников для селекта
 export async function fetchStudentsForSelect() {
-    const { data, error } = await supabase
-      .from('students')
-      .select('id, child_name')
-      .eq('teacher_id', getCurrentUser().id)
-      .order('child_name');
-    if (error) throw error;
-    return data || [];
-  }
-// Экспортируем fetchGroupsForSelect, чтобы groups.js мог импортировать его.
-// Эта функция теперь находится в groups.js, но если вы хотите, чтобы она была здесь,
-// то уберите импорт сверху и раскомментируйте следующую строку:
-// export { fetchGroupsForSelect };
-
-// Если вы хотите использовать fetchGroupsForSelect из этого файла, закомментируйте
-// импорт в начале и раскомментируйте функцию ниже:
-/*
-async function fetchGroupsForSelect() {
-  const { data } = await supabase
-    .from('student_groups')
-    .select('id, group_name')
-    .eq('teacher_id', getCurrentUser().id)
-    .order('group_name');
+  const { data } = await supabase.from('students').select('id, child_name').eq('teacher_id', getCurrentUser().id).order('child_name');
   return data || [];
 }
-*/
