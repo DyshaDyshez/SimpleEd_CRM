@@ -2,15 +2,19 @@
 import supabase from './supabaseClient.js';
 import { getDOMElements, getTemplate } from './ui.js';
 import { getCurrentUser } from './auth.js';
-import { openStudentCard } from './students.js'; // чтобы открыть карточку ученика при клике
+import { openStudentCard } from './students.js';
 
 let groupsList = [];
 let groupsCurrentView = 'cards';
+let groupsLoaded = false; // флаг кэширования
 
 // ==================== ИНИЦИАЛИЗАЦИЯ ====================
 export async function initGroupsPage() {
   try {
-    await fetchGroupsFull();
+    if (!groupsLoaded) {
+      await fetchGroupsFull();
+      groupsLoaded = true;
+    }
     renderGroupsView();
     bindGroupEvents();
   } catch (error) {
@@ -19,7 +23,7 @@ export async function initGroupsPage() {
   }
 }
 
-// ==================== ЗАГРУЗКА ДАННЫХ ГРУПП С УЧЕНИКАМИ И УРОКАМИ ====================
+// ==================== ЗАГРУЗКА ДАННЫХ ГРУПП ====================
 async function fetchGroupsFull() {
   const { data, error } = await supabase
     .from('student_groups')
@@ -29,14 +33,12 @@ async function fetchGroupsFull() {
   if (error) throw error;
 
   groupsList = await Promise.all(data.map(async (group) => {
-    // Ученики группы
     const { data: students } = await supabase
       .from('students')
       .select('id, child_name, child_age, parent_name, phone_number, status, parent_pain')
       .eq('group_id', group.id);
     group.students = students || [];
 
-    // Уроки группы (все)
     const { data: lessons } = await supabase
       .from('lessons')
       .select('id, lesson_date, topic, status, notes')
@@ -47,11 +49,10 @@ async function fetchGroupsFull() {
     const now = new Date().toISOString();
     group.nextLesson = lessons?.find(l => l.lesson_date >= now) || null;
 
-    // Для каждого ученика загружаем баланс оплат и проведённых уроков
     await Promise.all(group.students.map(async (student) => {
       const [{ data: payments }, { data: studentLessons }] = await Promise.all([
         supabase.from('payments').select('lessons_paid').eq('student_id', student.id),
-        supabase.from('lessons').select('id').eq('student_id', student.id).eq('status', 'Проведен')
+        supabase.from('lessons').select('id').eq('student_id', student.id).eq('status', 'completed')
       ]);
       const totalPaid = (payments || []).reduce((sum, p) => sum + (p.lessons_paid || 0), 0);
       const totalCompleted = (studentLessons || []).length;
@@ -64,7 +65,12 @@ async function fetchGroupsFull() {
   }));
 }
 
-// ==================== РЕНДЕРИНГ КАРТОЧЕК / ТАБЛИЦЫ ====================
+// Сброс кэша (вызывать после изменений)
+export function resetGroupsCache() {
+  groupsLoaded = false;
+}
+
+// ==================== РЕНДЕРИНГ ====================
 function renderGroupsView() {
   const { contentArea } = getDOMElements();
   const container = contentArea.querySelector('#groupsViewContainer');
@@ -95,7 +101,6 @@ function createGroupCard(group) {
   const template = getTemplate('groupCard');
   const card = template.content.cloneNode(true).querySelector('.group-card');
   card.dataset.id = group.id;
-
   card.querySelector('.group-name').textContent = group.group_name;
   card.querySelector('.group-subject').textContent = group.subject || 'Без предмета';
   card.querySelector('.students-count').textContent = group.students.length;
@@ -105,7 +110,6 @@ function createGroupCard(group) {
   } else {
     nextEl.textContent = 'Нет занятий';
   }
-
   const preview = card.querySelector('.group-students-preview');
   preview.innerHTML = '';
   group.students.slice(0,3).forEach(s => {
@@ -115,11 +119,9 @@ function createGroupCard(group) {
     preview.appendChild(div);
   });
   if (!group.students.length) preview.innerHTML = '<div class="no-students">Нет учеников</div>';
-
   card.querySelector('.open-full-group').addEventListener('click', () => openFullGroupCard(group.id));
   card.querySelector('.delete-group').addEventListener('click', (e) => { e.stopPropagation(); deleteGroupById(group.id); });
   card.querySelector('.schedule-lesson-btn').addEventListener('click', (e) => { e.stopPropagation(); openScheduleLessonModal(group.id, group.group_name); });
-
   return card;
 }
 
@@ -127,6 +129,7 @@ function createGroupCard(group) {
 async function deleteGroupById(id) {
   if (!confirm('Удалить группу?')) return;
   await supabase.from('student_groups').delete().eq('id', id);
+  resetGroupsCache();
   await fetchGroupsFull();
   renderGroupsView();
 }
@@ -145,16 +148,13 @@ export async function openFullGroupCard(groupId) {
   document.getElementById('fullGroupName').textContent = group.group_name;
   document.getElementById('editGroupName').value = group.group_name;
   document.getElementById('editGroupSubject').value = group.subject || '';
-  // Заметки группы (если поле ещё не добавлено в таблицу, можно использовать subject как заметку или добавить отдельное поле group_notes)
   const groupNotesEl = modal.querySelector('#groupNotes');
   if (groupNotesEl) groupNotesEl.value = group.notes || '';
 
-  // Заполняем вкладки
   populateStudentsTab(modal, group);
   populateLessonsTab(modal, group);
-  populateGroupLessonsTab(modal, group); // для вкладки "Проведённые уроки"
+  populateGroupLessonsTab(modal, group);
 
-  // Вкладки (добавим обработчики)
   modal.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
       const tabName = tab.dataset.tab;
@@ -165,7 +165,6 @@ export async function openFullGroupCard(groupId) {
     });
   });
 
-  // Сохранение
   modal.querySelector('#saveFullGroup').addEventListener('click', async () => {
     const name = document.getElementById('editGroupName').value.trim();
     if (!name) return alert('Введите название');
@@ -173,6 +172,7 @@ export async function openFullGroupCard(groupId) {
     const notes = modal.querySelector('#groupNotes')?.value.trim() || null;
     await supabase.from('student_groups').update({ group_name: name, subject, notes }).eq('id', groupId);
     modal.remove();
+    resetGroupsCache();
     await fetchGroupsFull();
     renderGroupsView();
   });
@@ -181,7 +181,6 @@ export async function openFullGroupCard(groupId) {
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 }
 
-// Вкладка «Ученики» с индикаторами оплаты
 function populateStudentsTab(modal, group) {
   const container = modal.querySelector('#tabGroupStudents .students-list-full');
   const noMsg = modal.querySelector('.no-students-tab');
@@ -216,6 +215,7 @@ function populateStudentsTab(modal, group) {
         await supabase.from('students').update({ group_id: null }).eq('id', id);
         group.students = group.students.filter(s => s.id !== id);
         populateStudentsTab(modal, group);
+        resetGroupsCache(); // изменения в группе – сбрасываем кэш
       });
     });
   } else {
@@ -225,7 +225,6 @@ function populateStudentsTab(modal, group) {
   modal.querySelector('#addStudentToGroupBtn').onclick = () => showAddStudentModal(group.id, modal);
 }
 
-// Вкладка «Проведённые уроки» (только completed)
 function populateGroupLessonsTab(modal, group) {
   const container = modal.querySelector('#tabGroupLessons .lessons-list-full');
   const noMsg = modal.querySelector('.no-lessons-tab');
@@ -241,10 +240,8 @@ function populateGroupLessonsTab(modal, group) {
     container.innerHTML = '';
     noMsg.style.display = 'block';
   }
-  // Кнопка назначения урока (уже есть в populateLessonsTab, но можно оставить)
 }
 
-// Вкладка «Расписание» (все уроки)
 function populateLessonsTab(modal, group) {
   const container = modal.querySelector('#tabGroupLessons .lessons-list-full');
   const noMsg = modal.querySelector('.no-lessons-tab');
@@ -264,6 +261,7 @@ function populateLessonsTab(modal, group) {
         group.lessons = group.lessons.filter(l => l.id !== id);
         populateLessonsTab(modal, group);
         populateGroupLessonsTab(modal, group);
+        resetGroupsCache();
       });
     });
   } else {
@@ -296,6 +294,7 @@ async function showAddStudentModal(groupId, parentModal) {
     await supabase.from('students').update({ group_id: groupId }).eq('id', select.value);
     modal.remove();
     parentModal.remove();
+    resetGroupsCache();
     await fetchGroupsFull();
     openFullGroupCard(groupId);
   });
@@ -342,6 +341,7 @@ function openScheduleLessonModal(groupId, groupName) {
         status: 'planned'
       });
       modal.remove();
+      resetGroupsCache();
       await fetchGroupsFull();
       renderGroupsView();
       const openModal = document.querySelector('.modal.group-full-details');
@@ -391,6 +391,7 @@ function showCreateGroupModal() {
         notes
       });
       modal.remove();
+      resetGroupsCache();
       await fetchGroupsFull();
       renderGroupsView();
     } catch (err) { modal.querySelector('#createGroupError').textContent = err.message; }
@@ -409,7 +410,6 @@ function bindGroupEvents() {
   }));
 }
 
-// Экспорт для других модулей
 export async function fetchGroupsForSelect() {
   const { data } = await supabase.from('student_groups').select('id, group_name').eq('teacher_id', getCurrentUser().id).order('group_name');
   return data || [];

@@ -6,6 +6,7 @@ import { initGroupsPage } from './groups.js';
 import { initStudentsPage } from './students.js';
 import { initSchedulePage } from './schedule.js';
 import { initFinancePage } from './finance.js';
+import { initDashboard } from './dashboard.js'; // статический импорт
 
 let currentPage = 'dashboard';
 
@@ -17,7 +18,10 @@ async function initApp() {
     currentPage = page;
     renderPage(page);
 
-    if (page === 'groups') {
+    // Всегда вызываем инициализацию страницы (модуль сам решит, грузить данные или взять из кэша)
+    if (page === 'dashboard') {
+      await initDashboard();
+    } else if (page === 'groups') {
       await initGroupsPage();
     } else if (page === 'students') {
       await initStudentsPage();
@@ -28,13 +32,9 @@ async function initApp() {
     }
   });
 
+  // Первичная загрузка главной
   renderPage('dashboard');
-  // Загружаем дашборд асинхронно, не блокируя основной поток
-  import('./dashboard.js')
-    .then(module => {
-      if (module.initDashboard) module.initDashboard();
-    })
-    .catch(e => console.warn('Модуль dashboard не найден или содержит ошибку:', e));
+  await initDashboard();
 }
 
 document.addEventListener('DOMContentLoaded', initApp);

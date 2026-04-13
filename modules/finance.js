@@ -1,6 +1,6 @@
 // modules/finance.js
 import supabase from './supabaseClient.js';
-import { getDOMElements, renderPage } from './ui.js';
+import { renderPage } from './ui.js';
 import { getCurrentUser } from './auth.js';
 import { fetchGroupsForSelect } from './groups.js';
 import { fetchStudentsForSelect } from './students.js';
@@ -8,11 +8,14 @@ import { fetchStudentsForSelect } from './students.js';
 let allPayments = [];
 let studentsList = [];
 let groupsList = [];
+let financeLoaded = false;
 
-// ==================== ИНИЦИАЛИЗАЦИЯ ====================
 export async function initFinancePage() {
   renderPage('finance');
-  await loadData();
+  if (!financeLoaded) {
+    await loadData();
+    financeLoaded = true;
+  }
   renderFilters();
   await loadPayments();
   bindEvents();
@@ -28,23 +31,14 @@ async function loadData() {
 async function loadPayments() {
   const { data, error } = await supabase
     .from('payments')
-    .select(`
-      *,
-      students ( child_name ),
-      student_groups ( group_name )
-    `)
+    .select(`*, students ( child_name ), student_groups ( group_name )`)
     .eq('teacher_id', getCurrentUser().id)
     .order('payment_date', { ascending: false });
-
-  if (error) {
-    console.error(error);
-    return;
-  }
+  if (error) { console.error(error); return; }
   allPayments = data || [];
   applyFilters();
 }
 
-// ==================== ФИЛЬТРЫ ====================
 function renderFilters() {
   const studentSelect = document.getElementById('filterStudent');
   const groupSelect = document.getElementById('filterGroup');
@@ -58,7 +52,6 @@ function applyFilters() {
   const dateFrom = document.getElementById('filterDateFrom').value;
   const dateTo = document.getElementById('filterDateTo').value;
   const status = document.getElementById('filterStatus').value;
-
   let filtered = allPayments.filter(p => {
     if (studentId && p.student_id !== studentId) return false;
     if (groupId && p.group_id !== groupId) return false;
@@ -67,7 +60,6 @@ function applyFilters() {
     if (status && p.status !== status) return false;
     return true;
   });
-
   renderTable(filtered);
   updateSummary(filtered);
 }
@@ -96,7 +88,6 @@ function renderTable(payments) {
       </td>
     </tr>`;
   }).join('');
-
   tbody.querySelectorAll('.edit-payment').forEach(btn => btn.addEventListener('click', () => editPayment(btn.dataset.id)));
   tbody.querySelectorAll('.delete-payment').forEach(btn => btn.addEventListener('click', () => deletePayment(btn.dataset.id)));
 }
@@ -118,7 +109,6 @@ function resetFilters() {
   applyFilters();
 }
 
-// ==================== ДОБАВЛЕНИЕ / РЕДАКТИРОВАНИЕ ПЛАТЕЖА ====================
 function showPaymentForm(payment = null) {
   const isEdit = !!payment;
   const modal = document.createElement('div');
@@ -145,16 +135,12 @@ function showPaymentForm(payment = null) {
     </div>
   `;
   document.body.appendChild(modal);
-
   modal.querySelector('.close-modal').addEventListener('click', () => modal.remove());
   modal.querySelector('#paymentForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const errorDiv = modal.querySelector('#paymentFormError');
     const studentId = modal.querySelector('#paymentStudent').value;
-    if (!studentId) {
-      errorDiv.textContent = 'Выберите ученика';
-      return;
-    }
+    if (!studentId) { errorDiv.textContent = 'Выберите ученика'; return; }
     const paymentData = {
       teacher_id: getCurrentUser().id,
       student_id: studentId,
@@ -167,18 +153,13 @@ function showPaymentForm(payment = null) {
       description: modal.querySelector('#paymentDescription').value.trim() || null,
       status: modal.querySelector('#paymentStatus').value
     };
-
     let res;
     if (isEdit) {
       res = await supabase.from('payments').update(paymentData).eq('id', payment.id);
     } else {
       res = await supabase.from('payments').insert(paymentData);
     }
-
-    if (res.error) {
-      errorDiv.textContent = res.error.message;
-      return;
-    }
+    if (res.error) { errorDiv.textContent = res.error.message; return; }
     modal.remove();
     await loadPayments();
   });
@@ -197,7 +178,6 @@ async function deletePayment(id) {
   else await loadPayments();
 }
 
-// ==================== ПРИВЯЗКА СОБЫТИЙ ====================
 function bindEvents() {
   document.getElementById('addPaymentGlobalBtn')?.addEventListener('click', () => showPaymentForm());
   document.getElementById('applyFinanceFilters')?.addEventListener('click', applyFilters);
