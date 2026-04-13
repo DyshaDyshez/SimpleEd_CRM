@@ -7,6 +7,7 @@ import { initStudentsPage } from './students.js';
 import { initSchedulePage } from './schedule.js';
 import { initFinancePage } from './finance.js';
 import { initDashboard } from './dashboard.js'; // статический импорт
+import { initNotesPage } from './notes.js';
 
 let currentPage = 'dashboard';
 
@@ -29,6 +30,8 @@ async function initApp() {
       await initSchedulePage();
     } else if (page === 'finance') {
       await initFinancePage();
+    } else if (page === 'notes') {
+      await initNotesPage();
     }
   });
 

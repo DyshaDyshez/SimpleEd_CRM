@@ -168,9 +168,45 @@
 
 
 
-<template id="notesTemplate">
-  <div class="form-card"><h2>Заметки</h2><p>В разработке</p></div>
-</template>
+  <template id="notesTemplate">
+    <div class="notes-container">
+      <!-- Боковая панель -->
+      <div class="notes-sidebar">
+        <div class="notes-sidebar-header">
+          <h3>Заметки</h3>
+          <button id="newNoteBtn" class="btn btn-sm btn-primary"><i class="fas fa-plus"></i> Новая</button>
+        </div>
+        
+        <!-- Фильтры -->
+        <div class="notes-filters">
+          <input type="text" id="notesSearchInput" placeholder="Поиск по названию..." class="search-input">
+          <select id="folderFilterSelect">
+            <option value="">Все папки</option>
+          </select>
+          <select id="studentFilterSelect">
+            <option value="">Все ученики</option>
+          </select>
+          <select id="groupFilterSelect">
+            <option value="">Все группы</option>
+          </select>
+          <button id="clearFiltersBtn" class="btn btn-sm btn-secondary">Сбросить</button>
+        </div>
+  
+        <!-- Список заметок -->
+        <div class="notes-list" id="notesListContainer">
+          <p class="text-muted">Нет заметок</p>
+        </div>
+      </div>
+  
+      <!-- Редактор -->
+      <div class="notes-editor" id="notesEditorContainer">
+        <div class="notes-editor-placeholder">
+          <i class="fas fa-sticky-note" style="font-size: 3rem; color: var(--neutral-gray);"></i>
+          <p>Выберите или создайте заметку</p>
+        </div>
+      </div>
+    </div>
+  </template>
 
 <template id="groupCardTemplate">
   <div class="group-card">
