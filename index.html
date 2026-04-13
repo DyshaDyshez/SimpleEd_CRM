@@ -44,12 +44,36 @@
 
 <!-- ШАБЛОНЫ -->
 <template id="dashboardTemplate">
-  <div class="dashboard-grid">
-    <div class="card stat-card"><h3><i class="fas fa-chart-bar"></i> Статистика</h3><div class="stat-value">0 <span>уроков</span></div><div class="stat-money">0 ₽</div></div>
-    <div class="card note-card"><h3><i class="fas fa-sticky-note"></i> Заметка</h3><p>Мои ученики</p></div>
-    <div class="card"><h3><i class="fas fa-clock"></i> Ближайшие уроки</h3><div class="lesson-list"><p class="text-muted">Нет уроков</p></div></div>
-  </div>
-</template>
+    <div class="dashboard-grid">
+      <!-- Статистика -->
+      <div class="card stat-card">
+        <h3><i class="fas fa-chart-bar"></i> Статистика</h3>
+        <div class="stat-value"><span id="totalLessonsCount">0</span> <span>уроков</span></div>
+        <div class="stat-money"><span id="totalEarnings">0</span> ₽</div>
+      </div>
+  
+      <!-- Ближайшие уроки (3-5) -->
+      <div class="card">
+        <h3><i class="fas fa-clock"></i> Ближайшие уроки</h3>
+        <div class="lesson-list" id="upcomingLessonsList">
+          <p class="text-muted">Загрузка...</p>
+        </div>
+      </div>
+  
+      <!-- Проведённые уроки (последние 5) -->
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <h3><i class="fas fa-check-circle"></i> Проведённые уроки</h3>
+          <button class="btn btn-sm btn-primary" id="addCompletedLessonBtn">
+            <i class="fas fa-plus"></i> Добавить
+          </button>
+        </div>
+        <div class="lesson-list" id="completedLessonsList">
+          <p class="text-muted">Нет проведённых уроков</p>
+        </div>
+      </div>
+    </div>
+  </template>
 
 <template id="studentsTemplate">
   <div class="form-card">
