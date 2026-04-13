@@ -5,11 +5,97 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Вход в админку SimpleEd</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="admin.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Дополнительные стили специально для страницы входа */
+        .admin-login-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+            padding: 1.5rem;
+        }
+        .admin-login-card {
+            background: white;
+            border-radius: var(--border-radius-lg);
+            padding: 2.5rem;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: var(--shadow-lg);
+            text-align: center;
+        }
+        .admin-login-card .logo {
+            margin-bottom: 2rem;
+        }
+        .admin-login-card .logo i {
+            font-size: 2.5rem;
+            color: var(--primary-warm);
+        }
+        .admin-login-card h2 {
+            margin-bottom: 0.5rem;
+            color: var(--neutral-deep);
+        }
+        .admin-login-card p {
+            color: var(--text-secondary);
+            margin-bottom: 1.5rem;
+        }
+        .admin-login-card .input-group {
+            text-align: left;
+            margin-bottom: 1.25rem;
+        }
+        .admin-login-card label {
+            display: block;
+            margin-bottom: 0.3rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+        .admin-login-card input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--neutral-gray);
+            border-radius: var(--border-radius-sm);
+            font-size: 1rem;
+            transition: var(--transition);
+        }
+        .admin-login-card input:focus {
+            outline: none;
+            border-color: var(--primary-warm);
+            box-shadow: 0 0 0 3px rgba(212, 163, 115, 0.15);
+        }
+        .btn-login {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--primary-warm);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius-sm);
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            margin-top: 0.5rem;
+        }
+        .btn-login:hover {
+            background: var(--primary-deep);
+        }
+        .back-link {
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
+        }
+        .back-link a {
+            color: var(--text-secondary);
+            text-decoration: none;
+        }
+        .back-link a:hover {
+            color: var(--primary-warm);
+        }
+    </style>
 </head>
-<body class="auth-page">
-    <div class="auth-container">
-        <div class="auth-card">
+<body>
+    <div class="admin-login-container">
+        <div class="admin-login-card">
             <div class="logo">
                 <i class="fas fa-graduation-cap"></i>
                 <span>SimpleEd Admin</span>
@@ -20,7 +106,7 @@
             <form id="adminLoginForm">
                 <div class="input-group">
                     <label>Email</label>
-                    <input type="email" id="adminEmail" placeholder="Andrew02563@gmail.com" required>
+                    <input type="email" id="adminEmail" placeholder="admin@example.com" required>
                 </div>
                 <div class="input-group">
                     <label>Пароль</label>
@@ -28,7 +114,10 @@
                 </div>
                 <button type="submit" class="btn-login">Войти</button>
             </form>
-            <div id="loginError" style="color: #d32f2f; margin-top: 1rem;"></div>
+            <div id="loginError" style="color: #d32f2f; margin-top: 1rem; min-height: 24px;"></div>
+            <div class="back-link">
+                <a href="index.html"><i class="fas fa-arrow-left"></i> Вернуться в CRM</a>
+            </div>
         </div>
     </div>
 
@@ -38,6 +127,9 @@
         const supabaseAdmin = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
         const form = document.getElementById('adminLoginForm');
         const errorDiv = document.getElementById('loginError');
+
+        // Убираем захардкоженный плейсхолдер с реальным email
+        // Теперь там просто "admin@example.com"
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();

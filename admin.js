@@ -34,6 +34,14 @@
     // Форматирование даты
     function formatDate(d) { return d ? new Date(d).toLocaleDateString('ru-RU') : '—'; }
 
+    function showLoader() {
+        document.getElementById('globalLoader')?.classList.remove('hidden');
+    }
+    function hideLoader() {
+        document.getElementById('globalLoader')?.classList.add('hidden');
+    }
+
+
     // Загрузка списка преподавателей
     async function loadTeachers() {
         try {
@@ -74,127 +82,275 @@
             console.error(err);
             tbody.innerHTML = `<tr><td colspan="7">Ошибка загрузки</td></tr>`;
         }
+        // В конце функции loadTeachers(), после рендеринга таблицы
+checkBirthdays();
     }
 
-    // Открытие карточки преподавателя (без изменений, как в предыдущей версии)
-    async function openCard(teacherId) {
-        modal.classList.remove('hidden');
-        modalTitle.textContent = 'Загрузка...';
-        modalContent.innerHTML = '<p style="text-align:center;padding:2rem;">Загрузка данных...</p>';
 
+
+    async function sendBirthdayGreeting(teacherId, teacherName, btn) {
         try {
-            const { data: profile, error: profErr } = await supabase
-                .from('teacher_profiles')
-                .select('*')
-                .eq('id', teacherId)
-                .single();
-            if (profErr) throw profErr;
-
-            const [lessRes, studRes, payRes, noteRes] = await Promise.allSettled([
-                supabase.from('lessons').select('*', { count: 'exact', head: true }).eq('teacher_id', teacherId),
-                supabase.from('students').select('*', { count: 'exact', head: true }).eq('teacher_id', teacherId),
-                supabase.from('teacher_payments').select('*').eq('teacher_id', teacherId).order('payment_date', { ascending: false }),
-                supabase.from('teacher_notes').select('*').eq('teacher_id', teacherId).order('created_at', { ascending: false })
-            ]);
-
-            const lessons = lessRes.status === 'fulfilled' ? lessRes.value.count : '?';
-            const students = studRes.status === 'fulfilled' ? studRes.value.count : '?';
-            const payments = payRes.status === 'fulfilled' ? payRes.value.data : [];
-            const notes = noteRes.status === 'fulfilled' ? noteRes.value.data : [];
-
-            modalTitle.textContent = profile.teacher_name || 'Преподаватель';
-
-            modalContent.innerHTML = `
-                <div class="stats-grid">
-                    <div class="stat-item"><div class="stat-value">${lessons}</div><div class="stat-label">уроков</div></div>
-                    <div class="stat-item"><div class="stat-value">${students}</div><div class="stat-label">учеников</div></div>
-                    <div class="stat-item"><div class="stat-value">${payments.length}</div><div class="stat-label">платежей</div></div>
-                </div>
-                <h3>Редактирование</h3>
-                <form id="editForm">
-                    <div class="form-grid">
-                        <div class="form-group"><label>Имя</label><input id="editName" value="${profile.teacher_name || ''}"></div>
-                        <div class="form-group"><label>Email</label><input id="editEmail" value="${profile.email}"></div>
-                        <div class="form-group"><label>Пароль</label><input id="editPassword" placeholder="Новый пароль"></div>
-                        <div class="form-group"><label>Тариф</label><select id="editPlan">
-                            <option ${profile.subscription_plan === 'trial' ? 'selected' : ''}>trial</option>
-                            <option ${profile.subscription_plan === 'pro' ? 'selected' : ''}>pro</option>
-                            <option ${profile.subscription_plan === 'vip' ? 'selected' : ''}>vip</option>
-                        </select></div>
-                        <div class="form-group"><label>Доступ до</label><input type="date" id="editAccess" value="${profile.access_until?.slice(0,10) || ''}"></div>
-                        <div class="form-group"><label>Статус</label><select id="editStatus">
-                            <option ${profile.activity_status === 'active' ? 'selected' : ''}>active</option>
-                            <option ${profile.activity_status === 'inactive' ? 'selected' : ''}>inactive</option>
-                            <option ${profile.activity_status === 'vip' ? 'selected' : ''}>vip</option>
-                            <option ${profile.activity_status === 'blocked' ? 'selected' : ''}>blocked</option>
-                        </select></div>
-                    </div>
-                    <button type="submit" class="btn btn-success mt-2">Сохранить</button>
-                </form>
-                <h3>Оплаты</h3>
-                <button class="btn btn-primary" id="showAddPayment"><i class="fas fa-plus"></i> Добавить оплату</button>
-                <div id="addPaymentBlock" style="display:none; margin-top:1rem; padding:1rem; background:#FEFAE0; border-radius:12px;">
-                    <div style="display:flex; gap:1rem; flex-wrap:wrap;">
-                        <input type="number" id="payAmount" placeholder="Сумма" style="width:120px;">
-                        <input type="date" id="payUntil">
-                        <input type="text" id="payNote" placeholder="Заметка" style="flex:1;">
-                        <button class="btn btn-success" id="savePayment">Сохранить</button>
-                    </div>
-                </div>
-                <div style="margin-top:1rem;">
-                    ${payments.map(p => `<div><strong>${p.payment_date}</strong> — ${p.amount}₽ до ${p.paid_until} (${p.notes || ''})</div>`).join('') || 'Нет оплат'}
-                </div>
-                <h3>Заметки</h3>
-                <textarea id="newNote" placeholder="Добавить заметку..." rows="2" style="width:100%; margin-bottom:0.5rem;"></textarea>
-                <button class="btn btn-primary" id="saveNote">Добавить</button>
-                <div style="margin-top:1rem;">
-                    ${notes.map(n => `<div><em>${n.created_at.slice(0,10)}</em> ${n.note}</div>`).join('') || 'Нет заметок'}
-                </div>
-            `;
-
-            document.getElementById('editForm').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const newPass = document.getElementById('editPassword').value;
-                const updates = {
-                    teacher_name: document.getElementById('editName').value,
-                    email: document.getElementById('editEmail').value,
-                    subscription_plan: document.getElementById('editPlan').value,
-                    access_until: document.getElementById('editAccess').value,
-                    activity_status: document.getElementById('editStatus').value
-                };
-                await supabase.from('teacher_profiles').update(updates).eq('id', teacherId);
-                if (newPass) {
-                    // Обновление пароля через встроенную функцию Supabase
-                    await supabase.auth.admin.updateUserById(teacherId, { password: newPass });
-                }
-                modal.classList.add('hidden');
-                loadTeachers();
-            });
-
-            document.getElementById('showAddPayment').addEventListener('click', () => {
-                document.getElementById('addPaymentBlock').style.display = 'block';
-            });
-            document.getElementById('savePayment').addEventListener('click', async () => {
-                const amount = document.getElementById('payAmount').value;
-                const until = document.getElementById('payUntil').value;
-                const note = document.getElementById('payNote').value;
-                if (!amount || !until) { alert('Введите сумму и дату'); return; }
-                await supabase.from('teacher_payments').insert({ teacher_id: teacherId, amount, paid_until: until, notes: note });
-                openCard(teacherId);
-                loadTeachers();
-            });
-            document.getElementById('saveNote').addEventListener('click', async () => {
-                const note = document.getElementById('newNote').value;
-                if (!note) return;
-                await supabase.from('teacher_notes').insert({ teacher_id: teacherId, note });
-                openCard(teacherId);
-            });
-
+            const currentYear = new Date().getFullYear();
+            
+            // 1. Сохраняем факт отправки поздравления
+            const { error: greetingError } = await supabase
+                .from('birthday_greetings')
+                .insert({
+                    teacher_id: teacherId,
+                    greeting_year: currentYear
+                });
+    
+            if (greetingError) {
+                console.error('Ошибка сохранения факта поздравления:', greetingError);
+                // Не прерываем, пробуем отправить уведомление
+            }
+    
+            // 2. Создаём уведомление для учителя
+            const { error: notifError } = await supabase
+                .from('notifications')
+                .insert({
+                    teacher_id: teacherId,
+                    type: 'birthday',
+                    title: 'С днём рождения! 🎉',
+                    content: `Дорогой(ая) ${teacherName}, поздравляем Вас с днём рождения! Желаем успехов, вдохновения и благодарных учеников!`,
+                    is_read: false,
+                    created_at: new Date().toISOString()
+                });
+    
+            if (notifError) {
+                console.error('Ошибка отправки поздравления:', notifError);
+                alert('Не удалось отправить уведомление');
+                return;
+            }
+    
+            alert(`Поздравление для ${teacherName} отправлено!`);
+            
+            // Меняем кнопку
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-check"></i> Отправлено';
+            }
+    
+            // Через 2 секунды обновляем страницу, чтобы алерт исчез
+            setTimeout(() => {
+                loadTeachers(); // перезагружаем список, что вызовет checkBirthdays заново
+            }, 1500);
+    
         } catch (err) {
             console.error(err);
-            modalContent.innerHTML = `<p class="error-message">Ошибка: ${err.message}</p>`;
+            alert('Ошибка: ' + err.message);
         }
     }
+
+async function sendBirthdayGreeting(teacherId, teacherName, btn) {
+    try {
+        // Создаём уведомление для учителя
+        const { error } = await supabase
+            .from('notifications')
+            .insert({
+                teacher_id: teacherId,
+                type: 'birthday',
+                title: 'С днём рождения! 🎉',
+                content: `Дорогой(ая) ${teacherName}, поздравляем Вас с днём рождения! Желаем успехов, вдохновения и благодарных учеников!`,
+                is_read: false,
+                created_at: new Date().toISOString()
+            });
+
+        if (error) {
+            console.error('Ошибка отправки поздравления:', error);
+            alert('Не удалось отправить поздравление');
+            return;
+        }
+
+        alert(`Поздравление для ${teacherName} отправлено!`);
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-check"></i> Отправлено';
+        }
+    } catch (err) {
+        console.error(err);
+        alert('Ошибка: ' + err.message);
+    }
+}
+
+
+
+
+    // Открытие карточки преподавателя (с ДР и кнопкой поздравления)
+async function openCard(teacherId) {
+    modal.classList.remove('hidden');
+    modalTitle.textContent = 'Загрузка...';
+    modalContent.innerHTML = '<p style="text-align:center;padding:2rem;">Загрузка данных...</p>';
+
+    try {
+        const { data: profile, error: profErr } = await supabase
+            .from('teacher_profiles')
+            .select('*')
+            .eq('id', teacherId)
+            .single();
+        if (profErr) throw profErr;
+
+        const [lessRes, studRes, payRes, noteRes] = await Promise.allSettled([
+            supabase.from('lessons').select('*', { count: 'exact', head: true }).eq('teacher_id', teacherId),
+            supabase.from('students').select('*', { count: 'exact', head: true }).eq('teacher_id', teacherId),
+            supabase.from('teacher_payments').select('*').eq('teacher_id', teacherId).order('payment_date', { ascending: false }),
+            supabase.from('teacher_notes').select('*').eq('teacher_id', teacherId).order('created_at', { ascending: false })
+        ]);
+
+        const lessons = lessRes.status === 'fulfilled' ? lessRes.value.count : '?';
+        const students = studRes.status === 'fulfilled' ? studRes.value.count : '?';
+        const payments = payRes.status === 'fulfilled' ? payRes.value.data : [];
+        const notes = noteRes.status === 'fulfilled' ? noteRes.value.data : [];
+
+        // Проверяем, нужно ли показывать кнопку поздравления
+        const currentYear = new Date().getFullYear();
+        const { data: sentGreeting } = await supabase
+            .from('birthday_greetings')
+            .select('id')
+            .eq('teacher_id', teacherId)
+            .eq('greeting_year', currentYear)
+            .maybeSingle();
+
+        const alreadyGreeted = !!sentGreeting;
+        
+        let showBirthdayButton = false;
+        if (profile.birthday && !alreadyGreeted) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const birthDate = new Date(profile.birthday);
+            const birthMonth = birthDate.getMonth();
+            const birthDay = birthDate.getDate();
+            
+            for (let i = 0; i <= 2; i++) {
+                const checkDate = new Date(today);
+                checkDate.setDate(today.getDate() + i);
+                if (checkDate.getMonth() === birthMonth && checkDate.getDate() === birthDay) {
+                    showBirthdayButton = true;
+                    break;
+                }
+            }
+        }
+
+        const birthdayFormatted = profile.birthday 
+            ? new Date(profile.birthday).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })
+            : 'не указана';
+
+        modalTitle.textContent = profile.teacher_name || 'Преподаватель';
+
+        modalContent.innerHTML = `
+            <div class="stats-grid">
+                <div class="stat-item"><div class="stat-value">${lessons}</div><div class="stat-label">уроков</div></div>
+                <div class="stat-item"><div class="stat-value">${students}</div><div class="stat-label">учеников</div></div>
+                <div class="stat-item"><div class="stat-value">${payments.length}</div><div class="stat-label">платежей</div></div>
+            </div>
+            
+            <div style="background: var(--neutral-light); padding: 1rem; border-radius: var(--border-radius-sm); margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                    <i class="fas fa-birthday-cake" style="color: var(--primary-warm); margin-right: 0.5rem;"></i>
+                    <strong>День рождения:</strong> ${birthdayFormatted}
+                </div>
+                ${showBirthdayButton ? `
+                    <button class="btn btn-sm btn-primary send-birthday-wish-card" data-id="${teacherId}" data-name="${profile.teacher_name}">
+                        <i class="fas fa-gift"></i> Поздравить
+                    </button>
+                ` : ''}
+            </div>
+
+            <h3>Редактирование</h3>
+            <form id="editForm">
+                <div class="form-grid">
+                    <div class="form-group"><label>Имя</label><input id="editName" value="${profile.teacher_name || ''}"></div>
+                    <div class="form-group"><label>Email</label><input id="editEmail" value="${profile.email}"></div>
+                    <div class="form-group"><label>Пароль</label><input id="editPassword" placeholder="Новый пароль"></div>
+                    <div class="form-group"><label>Дата рождения</label><input type="date" id="editBirthday" value="${profile.birthday || ''}"></div>
+                    <div class="form-group"><label>Тариф</label><select id="editPlan">
+                        <option ${profile.subscription_plan === 'trial' ? 'selected' : ''}>trial</option>
+                        <option ${profile.subscription_plan === 'pro' ? 'selected' : ''}>pro</option>
+                        <option ${profile.subscription_plan === 'vip' ? 'selected' : ''}>vip</option>
+                    </select></div>
+                    <div class="form-group"><label>Доступ до</label><input type="date" id="editAccess" value="${profile.access_until?.slice(0,10) || ''}"></div>
+                    <div class="form-group"><label>Статус</label><select id="editStatus">
+                        <option ${profile.activity_status === 'active' ? 'selected' : ''}>active</option>
+                        <option ${profile.activity_status === 'inactive' ? 'selected' : ''}>inactive</option>
+                        <option ${profile.activity_status === 'vip' ? 'selected' : ''}>vip</option>
+                        <option ${profile.activity_status === 'blocked' ? 'selected' : ''}>blocked</option>
+                    </select></div>
+                </div>
+                <button type="submit" class="btn btn-success mt-2">Сохранить</button>
+            </form>
+            <h3>Оплаты</h3>
+            <button class="btn btn-primary" id="showAddPayment"><i class="fas fa-plus"></i> Добавить оплату</button>
+            <div id="addPaymentBlock" style="display:none; margin-top:1rem; padding:1rem; background:#FEFAE0; border-radius:12px;">
+                <div style="display:flex; gap:1rem; flex-wrap:wrap;">
+                    <input type="number" id="payAmount" placeholder="Сумма" style="width:120px;">
+                    <input type="date" id="payUntil">
+                    <input type="text" id="payNote" placeholder="Заметка" style="flex:1;">
+                    <button class="btn btn-success" id="savePayment">Сохранить</button>
+                </div>
+            </div>
+            <div style="margin-top:1rem;">
+                ${payments.map(p => `<div><strong>${p.payment_date}</strong> — ${p.amount}₽ до ${p.paid_until} (${p.notes || ''})</div>`).join('') || 'Нет оплат'}
+            </div>
+            <h3>Заметки</h3>
+            <textarea id="newNote" placeholder="Добавить заметку..." rows="2" style="width:100%; margin-bottom:0.5rem;"></textarea>
+            <button class="btn btn-primary" id="saveNote">Добавить</button>
+            <div style="margin-top:1rem;">
+                ${notes.map(n => `<div><em>${n.created_at.slice(0,10)}</em> ${n.note}</div>`).join('') || 'Нет заметок'}
+            </div>
+        `;
+
+        // Если есть кнопка поздравления — вешаем обработчик
+        const birthdayBtn = modalContent.querySelector('.send-birthday-wish-card');
+        if (birthdayBtn) {
+            birthdayBtn.addEventListener('click', async () => {
+                await sendBirthdayGreeting(teacherId, profile.teacher_name, birthdayBtn);
+            });
+        }
+
+        document.getElementById('editForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const newPass = document.getElementById('editPassword').value;
+            const birthday = document.getElementById('editBirthday').value;
+            const updates = {
+                teacher_name: document.getElementById('editName').value,
+                email: document.getElementById('editEmail').value,
+                birthday: birthday || null,
+                subscription_plan: document.getElementById('editPlan').value,
+                access_until: document.getElementById('editAccess').value,
+                activity_status: document.getElementById('editStatus').value
+            };
+            await supabase.from('teacher_profiles').update(updates).eq('id', teacherId);
+            if (newPass) {
+                await supabase.auth.admin.updateUserById(teacherId, { password: newPass });
+            }
+            modal.classList.add('hidden');
+            loadTeachers();
+        });
+
+        document.getElementById('showAddPayment').addEventListener('click', () => {
+            document.getElementById('addPaymentBlock').style.display = 'block';
+        });
+        document.getElementById('savePayment').addEventListener('click', async () => {
+            const amount = document.getElementById('payAmount').value;
+            const until = document.getElementById('payUntil').value;
+            const note = document.getElementById('payNote').value;
+            if (!amount || !until) { alert('Введите сумму и дату'); return; }
+            await supabase.from('teacher_payments').insert({ teacher_id: teacherId, amount, paid_until: until, notes: note });
+            openCard(teacherId);
+            loadTeachers();
+        });
+        document.getElementById('saveNote').addEventListener('click', async () => {
+            const note = document.getElementById('newNote').value;
+            if (!note) return;
+            await supabase.from('teacher_notes').insert({ teacher_id: teacherId, note });
+            openCard(teacherId);
+        });
+
+    } catch (err) {
+        console.error(err);
+        modalContent.innerHTML = `<p class="error-message">Ошибка: ${err.message}</p>`;
+    }
+}
 
     // Закрытие модалки
     closeModal.addEventListener('click', () => modal.classList.add('hidden'));
@@ -451,17 +607,58 @@ const { error: profileError } = await supabase
         const title = document.getElementById('announceTitle').value.trim();
         const content = document.getElementById('announceContent').value.trim();
         const scheduled = document.getElementById('announceDate').value;
+        
         if (!title || !content || !scheduled) {
             announceMsg.innerHTML = '<span style="color:#d32f2f;">Заполните все поля</span>';
             return;
         }
-        const { error } = await supabase.from('announcements').insert({ title, content, scheduled_date: scheduled, is_published: false });
-        if (error) {
-            announceMsg.innerHTML = `<span style="color:#d32f2f;">Ошибка: ${error.message}</span>`;
-        } else {
-            announceMsg.innerHTML = '<span style="color:#2C4C3B;">✓ Уведомление создано</span>';
+    
+        try {
+            // 1. Сохраняем объявление в таблицу announcements (для истории админа)
+            const { error: announceError } = await supabase
+                .from('announcements')
+                .insert({ 
+                    title, 
+                    content, 
+                    scheduled_date: scheduled, 
+                    is_published: true // сразу публикуем
+                });
+    
+            if (announceError) throw announceError;
+    
+            // 2. Получаем список всех активных преподавателей
+            const { data: teachers, error: teachersError } = await supabase
+                .from('teacher_profiles')
+                .select('id')
+                .eq('activity_status', 'active');
+    
+            if (teachersError) throw teachersError;
+    
+            // 3. Создаём уведомления для каждого преподавателя
+            if (teachers && teachers.length > 0) {
+                const notifications = teachers.map(t => ({
+                    teacher_id: t.id,
+                    type: 'announcement',
+                    title: title,
+                    content: content,
+                    is_read: false,
+                    created_at: new Date().toISOString()
+                }));
+    
+                const { error: notifError } = await supabase
+                    .from('notifications')
+                    .insert(notifications);
+    
+                if (notifError) throw notifError;
+            }
+    
+            announceMsg.innerHTML = '<span style="color:#2C4C3B;">✓ Уведомление отправлено всем преподавателям</span>';
             announceForm.reset();
             loadAnnouncements();
+    
+        } catch (err) {
+            console.error('Ошибка:', err);
+            announceMsg.innerHTML = `<span style="color:#d32f2f;">Ошибка: ${err.message}</span>`;
         }
     });
 
@@ -512,8 +709,475 @@ const { error: profileError } = await supabase
         autoPublishAnnouncements();
     }
 
+// ========== СТАТИСТИКА ==========
+let revenueChart = null;
+let weekdayChart = null;
 
+async function loadStatistics() {
+    const period = document.getElementById('statsPeriodSelect')?.value || '30';
+    
+    try {
+        showLoader();
+        
+        // Определяем дату начала периода
+        let startDate = null;
+        if (period !== 'all') {
+            const days = parseInt(period);
+            startDate = new Date();
+            startDate.setDate(startDate.getDate() - days);
+            startDate = startDate.toISOString();
+        }
 
+        // Загружаем все данные параллельно
+        const [
+            teachersRes,
+            studentsRes,
+            groupsRes,
+            lessonsRes,
+            paymentsRes,
+            allLessonsRes
+        ] = await Promise.all([
+            supabase.from('teacher_profiles').select('id, teacher_name, activity_status, created_at'),
+            supabase.from('students').select('id, teacher_id'),
+            supabase.from('student_groups').select('id, teacher_id'),
+            supabase.from('lessons').select('id, teacher_id, lesson_date, status').gte('lesson_date', startDate || '1900-01-01'),
+            supabase.from('payments').select('amount, teacher_id, payment_date').gte('payment_date', startDate || '1900-01-01'),
+            supabase.from('lessons').select('lesson_date, status')
+        ]);
+
+        // Общие показатели
+        const teachers = teachersRes.data || [];
+        const activeTeachers = teachers.filter(t => t.activity_status === 'active');
+        
+        document.getElementById('totalTeachers').textContent = teachers.length;
+        document.getElementById('totalStudents').textContent = studentsRes.data?.length || 0;
+        document.getElementById('totalGroups').textContent = groupsRes.data?.length || 0;
+        document.getElementById('totalLessons').textContent = lessonsRes.data?.length || 0;
+
+        // Финансы
+        const payments = paymentsRes.data || [];
+        const totalRevenue = payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+        document.getElementById('totalRevenue').textContent = totalRevenue.toFixed(0) + ' ₽';
+        
+        const avgRevenue = activeTeachers.length > 0 ? totalRevenue / activeTeachers.length : 0;
+        document.getElementById('avgRevenuePerTeacher').textContent = avgRevenue.toFixed(0) + ' ₽';
+
+        // Топ учителей
+        const teacherStats = new Map();
+        teachers.forEach(t => {
+            teacherStats.set(t.id, {
+                name: t.teacher_name || t.email || 'Без имени',
+                students: 0,
+                lessons: 0,
+                revenue: 0,
+                status: t.activity_status
+            });
+        });
+
+        studentsRes.data?.forEach(s => {
+            if (s.teacher_id && teacherStats.has(s.teacher_id)) {
+                teacherStats.get(s.teacher_id).students++;
+            }
+        });
+
+        lessonsRes.data?.forEach(l => {
+            if (l.teacher_id && teacherStats.has(l.teacher_id)) {
+                teacherStats.get(l.teacher_id).lessons++;
+            }
+        });
+
+        payments.forEach(p => {
+            if (p.teacher_id && teacherStats.has(p.teacher_id)) {
+                teacherStats.get(p.teacher_id).revenue += parseFloat(p.amount) || 0;
+            }
+        });
+
+        // Сортировка по выручке
+        const sortedTeachers = Array.from(teacherStats.values())
+            .sort((a, b) => b.revenue - a.revenue);
+
+        if (sortedTeachers.length > 0) {
+            document.getElementById('topTeacher').textContent = sortedTeachers[0].name;
+        }
+
+        // Таблица топ учителей
+        const tbody = document.getElementById('topTeachersBody');
+        if (tbody) {
+            tbody.innerHTML = sortedTeachers.slice(0, 10).map((t, i) => `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td>${t.name}</td>
+                    <td>${t.students}</td>
+                    <td>${t.lessons}</td>
+                    <td>${t.revenue.toFixed(0)} ₽</td>
+                    <td><span class="badge ${t.status}">${t.status}</span></td>
+                </tr>
+            `).join('') || '<tr><td colspan="6">Нет данных</td></tr>';
+        }
+
+        // График выручки по дням
+        const dailyRevenue = new Map();
+        payments.forEach(p => {
+            const date = p.payment_date;
+            dailyRevenue.set(date, (dailyRevenue.get(date) || 0) + (parseFloat(p.amount) || 0));
+        });
+
+        const sortedDates = Array.from(dailyRevenue.keys()).sort();
+        const labels = sortedDates.map(d => new Date(d).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }));
+        const data = sortedDates.map(d => dailyRevenue.get(d));
+
+        if (revenueChart) revenueChart.destroy();
+        const ctx = document.getElementById('revenueChart')?.getContext('2d');
+        if (ctx) {
+            revenueChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Выручка (₽)',
+                        data,
+                        borderColor: '#D4A373',
+                        backgroundColor: 'rgba(212, 163, 115, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        // Активность по дням недели
+        const weekdayCounts = [0, 0, 0, 0, 0, 0, 0];
+        allLessonsRes.data?.forEach(l => {
+            const date = new Date(l.lesson_date);
+            const day = date.getDay(); // 0 = воскресенье
+            weekdayCounts[day]++;
+        });
+
+        if (weekdayChart) weekdayChart.destroy();
+        const ctxWeekday = document.getElementById('weekdayChart')?.getContext('2d');
+        if (ctxWeekday) {
+            weekdayChart = new Chart(ctxWeekday, {
+                type: 'bar',
+                data: {
+                    labels: ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'],
+                    datasets: [{
+                        label: 'Уроков',
+                        data: weekdayCounts,
+                        backgroundColor: '#D4A373'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+    } catch (err) {
+        console.error('Ошибка загрузки статистики:', err);
+    } finally {
+        hideLoader();
+    }
+}
+
+// Привязываем обновление статистики
+document.getElementById('refreshStatsBtn')?.addEventListener('click', loadStatistics);
+document.getElementById('statsPeriodSelect')?.addEventListener('change', loadStatistics);
+
+// Загружаем статистику при открытии вкладки
+const statsTabObserver = new MutationObserver(() => {
+    if (document.getElementById('statsTab')?.classList.contains('active')) {
+        loadStatistics();
+    }
+});
+statsTabObserver.observe(document.getElementById('statsTab'), { 
+    attributes: true, 
+    attributeFilter: ['class'] 
+});
+
+// ========== СТАТИСТИКА ПРОДАЖ CRM ==========
+let salesChart = null;
+let planChart = null;
+let statusChart = null;
+
+async function loadSalesStatistics() {
+    const period = document.getElementById('salesPeriodSelect')?.value || '30';
+    
+    try {
+        showLoader();
+        
+        // Определяем дату начала периода
+        let startDate = null;
+        if (period !== 'all') {
+            const days = parseInt(period);
+            startDate = new Date();
+            startDate.setDate(startDate.getDate() - days);
+            startDate = startDate.toISOString().split('T')[0];
+        }
+
+        // Загружаем данные
+        let query = supabase
+            .from('teacher_payments')
+            .select(`
+                *,
+                teacher_profiles (
+                    id, teacher_name, email, subscription_plan, activity_status, access_until
+                )
+            `)
+            .order('payment_date', { ascending: false });
+        
+        if (startDate) {
+            query = query.gte('payment_date', startDate);
+        }
+        
+        const { data: payments, error } = await query;
+        if (error) throw error;
+
+        // Загружаем всех учителей для статистики статусов
+        const { data: allTeachers } = await supabase
+            .from('teacher_profiles')
+            .select('subscription_plan, activity_status');
+
+        const salesData = payments || [];
+        
+        // ===== СВОДКА =====
+        const totalRevenue = salesData.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+        document.getElementById('totalSalesRevenue').textContent = totalRevenue.toFixed(0) + ' ₽';
+        document.getElementById('totalSalesCount').textContent = salesData.length;
+        
+        const activeCount = allTeachers?.filter(t => t.activity_status === 'active').length || 0;
+        document.getElementById('activeSubscriptions').textContent = activeCount;
+        
+        const avgCheck = salesData.length > 0 ? totalRevenue / salesData.length : 0;
+        document.getElementById('avgCheck').textContent = avgCheck.toFixed(0) + ' ₽';
+
+        // Выручка за текущий месяц
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+        const monthRevenue = salesData
+            .filter(p => p.payment_date >= monthStart)
+            .reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+        document.getElementById('salesThisMonth').textContent = monthRevenue.toFixed(0) + ' ₽';
+
+        // Лучший день по продажам
+        const dailySales = new Map();
+        salesData.forEach(p => {
+            const date = p.payment_date;
+            dailySales.set(date, (dailySales.get(date) || 0) + (parseFloat(p.amount) || 0));
+        });
+        let bestDay = '—';
+        let bestAmount = 0;
+        dailySales.forEach((amount, date) => {
+            if (amount > bestAmount) {
+                bestAmount = amount;
+                bestDay = new Date(date).toLocaleDateString('ru-RU');
+            }
+        });
+        document.getElementById('bestSalesDay').textContent = bestDay !== '—' ? `${bestDay} (${bestAmount.toFixed(0)} ₽)` : '—';
+
+        // Самый популярный тариф
+        const planCounts = new Map();
+        allTeachers?.forEach(t => {
+            if (t.subscription_plan) {
+                planCounts.set(t.subscription_plan, (planCounts.get(t.subscription_plan) || 0) + 1);
+            }
+        });
+        let popularPlan = '—';
+        let maxCount = 0;
+        planCounts.forEach((count, plan) => {
+            if (count > maxCount) {
+                maxCount = count;
+                popularPlan = plan;
+            }
+        });
+        document.getElementById('mostPopularPlan').textContent = popularPlan;
+
+        // ===== ТАБЛИЦА =====
+        const tbody = document.getElementById('salesTableBody');
+        if (tbody) {
+            if (salesData.length > 0) {
+                tbody.innerHTML = salesData.map(p => {
+                    const teacher = p.teacher_profiles;
+                    return `
+                        <tr>
+                            <td>${p.payment_date ? new Date(p.payment_date).toLocaleDateString('ru-RU') : '—'}</td>
+                            <td>${teacher?.teacher_name || teacher?.email || '—'}</td>
+                            <td><span class="badge plan-${teacher?.subscription_plan}">${teacher?.subscription_plan || '—'}</span></td>
+                            <td>${p.amount || 0} ₽</td>
+                            <td>${p.paid_until ? new Date(p.paid_until).toLocaleDateString('ru-RU') : '—'}</td>
+                            <td>${p.notes || '—'}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="6">Нет данных за выбранный период</td></tr>';
+            }
+        }
+
+        // ===== ГРАФИК ПРОДАЖ ПО ДНЯМ =====
+        const dailyMap = new Map();
+        salesData.forEach(p => {
+            const date = p.payment_date;
+            dailyMap.set(date, (dailyMap.get(date) || 0) + (parseFloat(p.amount) || 0));
+        });
+
+        const sortedDates = Array.from(dailyMap.keys()).sort();
+        const labels = sortedDates.map(d => new Date(d).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }));
+        const chartData = sortedDates.map(d => dailyMap.get(d));
+
+        if (salesChart) salesChart.destroy();
+        const ctx = document.getElementById('salesChart')?.getContext('2d');
+        if (ctx) {
+            salesChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Выручка (₽)',
+                        data: chartData,
+                        backgroundColor: '#D4A373',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        // ===== КРУГОВАЯ ДИАГРАММА ПО ТАРИФАМ =====
+        const planRevenue = new Map();
+        salesData.forEach(p => {
+            const plan = p.teacher_profiles?.subscription_plan || 'unknown';
+            planRevenue.set(plan, (planRevenue.get(plan) || 0) + (parseFloat(p.amount) || 0));
+        });
+
+        if (planChart) planChart.destroy();
+        const ctxPlan = document.getElementById('planChart')?.getContext('2d');
+        if (ctxPlan) {
+            planChart = new Chart(ctxPlan, {
+                type: 'doughnut',
+                data: {
+                    labels: Array.from(planRevenue.keys()).map(p => p.toUpperCase()),
+                    datasets: [{
+                        data: Array.from(planRevenue.values()),
+                        backgroundColor: ['#D4A373', '#5C4F42', '#E9C46A', '#8B7E6C', '#CC9C5B']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+        }
+
+        // ===== КРУГОВАЯ ДИАГРАММА ПО СТАТУСАМ =====
+        const statusCounts = new Map();
+        allTeachers?.forEach(t => {
+            const status = t.activity_status || 'unknown';
+            statusCounts.set(status, (statusCounts.get(status) || 0) + 1);
+        });
+
+        if (statusChart) statusChart.destroy();
+        const ctxStatus = document.getElementById('statusChart')?.getContext('2d');
+        if (ctxStatus) {
+            const statusLabels = {
+                'active': 'Активные',
+                'inactive': 'Неактивные',
+                'vip': 'VIP',
+                'blocked': 'Заблокированные',
+                'trial': 'Пробный период'
+            };
+            statusChart = new Chart(ctxStatus, {
+                type: 'doughnut',
+                data: {
+                    labels: Array.from(statusCounts.keys()).map(s => statusLabels[s] || s),
+                    datasets: [{
+                        data: Array.from(statusCounts.values()),
+                        backgroundColor: ['#2C4C3B', '#8B7E6C', '#D4A373', '#d32f2f', '#E9C46A']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+        }
+
+    } catch (err) {
+        console.error('Ошибка загрузки статистики продаж:', err);
+    } finally {
+        hideLoader();
+    }
+}
+
+// Экспорт продаж в CSV
+function exportSalesToCSV() {
+    // Используем уже загруженные данные из таблицы
+    const rows = [];
+    rows.push(['Дата', 'Преподаватель', 'Email', 'Тариф', 'Сумма', 'Оплачено до', 'Заметка'].join(','));
+    
+    document.querySelectorAll('#salesTableBody tr').forEach(row => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length >= 6) {
+            const rowData = [
+                cells[0].textContent,
+                cells[1].textContent,
+                '', // email не отображается в таблице, можно пропустить
+                cells[2].textContent.replace('₽', '').trim(),
+                cells[3].textContent,
+                cells[4].textContent,
+                cells[5].textContent
+            ].map(v => `"${v}"`).join(',');
+            rows.push(rowData);
+        }
+    });
+    
+    const csv = rows.join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sales_export_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+// Привязываем события
+document.getElementById('refreshSalesBtn')?.addEventListener('click', loadSalesStatistics);
+document.getElementById('salesPeriodSelect')?.addEventListener('change', loadSalesStatistics);
+document.getElementById('exportSalesBtn')?.addEventListener('click', exportSalesToCSV);
+
+// Загружаем при открытии вкладки
+const paymentsTabObserver = new MutationObserver(() => {
+    if (document.getElementById('paymentsTab')?.classList.contains('active')) {
+        loadSalesStatistics();
+    }
+});
+paymentsTabObserver.observe(document.getElementById('paymentsTab'), { 
+    attributes: true, 
+    attributeFilter: ['class'] 
+});
     
 
 

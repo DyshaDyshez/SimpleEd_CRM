@@ -300,3 +300,56 @@
 .mb-2 { 
     margin-bottom: 1rem; 
 }
+/* ===== СТИЛИ ДЛЯ СТАТИСТИКИ ===== */
+.stat-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.25rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    border: 1px solid var(--neutral-gray);
+}
+.stat-card.highlight {
+    background: linear-gradient(135deg, var(--primary-soft), white);
+    border-left: 4px solid var(--primary-warm);
+}
+.stat-icon {
+    width: 50px;
+    height: 50px;
+    background: var(--primary-soft);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: var(--primary-warm);
+}
+.stat-content {
+    flex: 1;
+}
+.stat-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--neutral-deep);
+    line-height: 1.2;
+}
+.stat-label {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.filters {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+.filters select {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--neutral-gray);
+    border-radius: 8px;
+    background: white;
+    font-size: 0.9rem;
+    min-width: 180px;
+}

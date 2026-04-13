@@ -7,6 +7,14 @@
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/main.min.css' rel='stylesheet' />
+  <!-- Библиотека для экспорта в Excel -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+  <!-- FullCalendar JS -->
+  <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js'></script>
+
+  <!-- Chart.js для графиков статистики -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
 </head>
 <body>
 
@@ -22,6 +30,10 @@
       <a href="#" data-page="groups" class="nav-link"><i class="fas fa-th-large"></i><span>Группы</span></a>
       <a href="#" data-page="schedule" class="nav-link"><i class="fas fa-calendar-alt"></i><span>Расписание</span></a>
       <a href="#" data-page="finance" class="nav-link"><i class="fas fa-coins"></i><span>Финансы</span></a>
+          <!-- НОВАЯ ВКЛАДКА -->
+    <a href="#" data-page="stats" class="nav-link">
+      <i class="fas fa-chart-pie"></i>
+      <span>Статистика</span>
       <a href="#" data-page="notes" class="nav-link"><i class="fas fa-sticky-note"></i><span>Заметки</span></a>
     </nav>
     <div class="sidebar-footer">
@@ -33,9 +45,17 @@
   <main class="main-content">
     <header>
       <h1 id="pageTitle">Загрузка...</h1>
-      <div class="user-profile">
-        <span id="teacherNameDisplay">Учитель</span>
-        <span id="userAvatar" class="avatar">U</span>
+      <div style="display: flex; align-items: center; gap: 1rem;">
+        <!-- Колокольчик уведомлений -->
+        <div class="notifications-wrapper" style="position: relative; cursor: pointer;" id="notificationsBell">
+          <i class="fas fa-bell" style="font-size: 1.5rem; color: var(--text-secondary);"></i>
+          <span id="unreadBadge" class="unread-badge hidden">0</span>
+        </div>
+        <!-- Профиль -->
+        <div class="user-profile">
+          <span id="teacherNameDisplay">Учитель</span>
+          <span id="userAvatar" class="avatar">U</span>
+        </div>
       </div>
     </header>
     <div id="contentArea"></div>
@@ -167,7 +187,135 @@
 
 
 
+<!-- Шаблон страницы статистики -->
+<template id="statsTemplate">
+  <div class="form-card">
+      <div class="card-header">
+          <h2><i class="fas fa-chart-line"></i> Статистика</h2>
+          <div class="filters">
+              <select id="teacherStatsPeriod">
+                  <option value="7">Последние 7 дней</option>
+                  <option value="30" selected>Последние 30 дней</option>
+                  <option value="90">Последние 3 месяца</option>
+                  <option value="365">Последний год</option>
+                  <option value="all">Всё время</option>
+              </select>
+              <button class="btn btn-sm btn-primary" id="refreshTeacherStatsBtn">
+                  <i class="fas fa-sync-alt"></i> Обновить
+              </button>
+              <button class="btn btn-sm btn-success" id="exportTeacherStatsBtn">
+                  <i class="fas fa-download"></i> Экспорт
+              </button>
+          </div>
+      </div>
 
+      <!-- Общие показатели -->
+      <div class="stats-grid-teacher">
+          <div class="stat-card-teacher highlight">
+              <div class="stat-icon"><i class="fas fa-ruble-sign"></i></div>
+              <div class="stat-content">
+                  <div class="stat-value" id="teacherTotalRevenue">0 ₽</div>
+                  <div class="stat-label">Общая выручка</div>
+              </div>
+          </div>
+          <div class="stat-card-teacher">
+              <div class="stat-icon"><i class="fas fa-calendar-check"></i></div>
+              <div class="stat-content">
+                  <div class="stat-value" id="teacherTotalLessons">0</div>
+                  <div class="stat-label">Проведено уроков</div>
+              </div>
+          </div>
+          <div class="stat-card-teacher">
+              <div class="stat-icon"><i class="fas fa-user-graduate"></i></div>
+              <div class="stat-content">
+                  <div class="stat-value" id="teacherActiveStudents">0</div>
+                  <div class="stat-label">Активных учеников</div>
+              </div>
+          </div>
+          <div class="stat-card-teacher">
+              <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
+              <div class="stat-content">
+                  <div class="stat-value" id="teacherAvgPerLesson">0 ₽</div>
+                  <div class="stat-label">Средний чек за урок</div>
+              </div>
+          </div>
+      </div>
+
+      <!-- Дополнительные метрики -->
+      <div class="stats-grid-teacher" style="margin-top: 1.5rem;">
+          <div class="stat-card-teacher">
+              <div class="stat-icon"><i class="fas fa-calendar"></i></div>
+              <div class="stat-content">
+                  <div class="stat-value" id="teacherRevenueThisMonth">0 ₽</div>
+                  <div class="stat-label">Выручка за текущий месяц</div>
+              </div>
+          </div>
+          <div class="stat-card-teacher">
+              <div class="stat-icon"><i class="fas fa-trophy"></i></div>
+              <div class="stat-content">
+                  <div class="stat-value" id="teacherBestStudent">—</div>
+                  <div class="stat-label">Самый активный ученик</div>
+              </div>
+          </div>
+          <div class="stat-card-teacher">
+              <div class="stat-icon"><i class="fas fa-layer-group"></i></div>
+              <div class="stat-content">
+                  <div class="stat-value" id="teacherBestGroup">—</div>
+                  <div class="stat-label">Самая прибыльная группа</div>
+              </div>
+          </div>
+      </div>
+
+      <!-- График выручки -->
+      <div style="margin-top: 2rem;">
+          <h3><i class="fas fa-chart-bar"></i> Динамика выручки</h3>
+          <canvas id="teacherRevenueChart" style="width: 100%; max-height: 300px;"></canvas>
+      </div>
+
+      <!-- График уроков -->
+      <div style="margin-top: 2rem;">
+          <h3><i class="fas fa-chart-line"></i> Динамика уроков</h3>
+          <canvas id="teacherLessonsChart" style="width: 100%; max-height: 250px;"></canvas>
+      </div>
+
+      <!-- Два графика рядом -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem;">
+          <div>
+              <h3><i class="fas fa-chart-pie"></i> Выручка по ученикам</h3>
+              <canvas id="teacherStudentsChart" style="width: 100%; max-height: 250px;"></canvas>
+          </div>
+          <div>
+              <h3><i class="fas fa-chart-pie"></i> Выручка по группам</h3>
+              <canvas id="teacherGroupsChart" style="width: 100%; max-height: 250px;"></canvas>
+          </div>
+      </div>
+
+      <!-- Топ учеников -->
+      <div style="margin-top: 2rem;">
+          <h3><i class="fas fa-crown"></i> Топ учеников</h3>
+          <div class="table-responsive">
+              <table>
+                  <thead>
+                      <tr>
+                          <th>#</th>
+                          <th>Ученик</th>
+                          <th>Уроков</th>
+                          <th>Оплачено</th>
+                          <th>Баланс</th>
+                      </tr>
+                  </thead>
+                  <tbody id="teacherTopStudentsBody">
+                      <tr><td colspan="5">Загрузка...</td></tr>
+                  </tbody>
+              </table>
+          </div>
+      </div>
+  </div>
+</template>
+
+
+
+<!-- Шаблон страницы Заметки -->
   <template id="notesTemplate">
     <div class="notes-container">
       <!-- Боковая панель -->
@@ -276,6 +424,21 @@
           <input type="email" id="teacherEmail" disabled>
           <small class="text-muted">Email изменить нельзя</small>
         </div>
+                <!-- Кнопки экспорта и импорта -->
+                <div class="form-group" style="text-align: center; margin-top: 1rem;">
+                  <div style="display: flex; gap: 1rem; justify-content: center;">
+                    <button type="button" class="btn btn-secondary" id="exportDataBtn">
+                      <i class="fas fa-download"></i> Экспорт
+                    </button>
+                    <button type="button" class="btn btn-primary" id="importDataBtn">
+                      <i class="fas fa-upload"></i> Импорт
+                    </button>
+                  </div>
+                  <small class="text-muted" style="display: block; margin-top: 0.5rem;">
+                    Скачать или восстановить данные из Excel-файла
+                  </small>
+                  <input type="file" id="importFileInput" accept=".xlsx,.xls,.csv" style="display: none;">
+                </div>
         <div id="profileFormError" class="error-message"></div>
         <div class="modal-actions">
           <button type="submit" class="btn btn-primary">Сохранить</button>

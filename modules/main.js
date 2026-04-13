@@ -9,6 +9,8 @@ import { initFinancePage } from './finance.js';
 import { initDashboard } from './dashboard.js'; // статический импорт
 import { initNotesPage } from './notes.js';
 import { openProfileModal } from './profile.js';
+import { initNotifications } from './notifications.js';
+import { initStatsPage } from './stats.js';
 
 let currentPage = 'dashboard';
 
@@ -16,12 +18,15 @@ async function initApp() {
   const authOk = await initializeAuth();
   if (!authOk) return;
 
+  await initNotifications();
+
     // После успешной авторизации (после initializeAuth)
 const userProfileEl = document.querySelector('.user-profile');
 if (userProfileEl) {
   userProfileEl.style.cursor = 'pointer';
   userProfileEl.addEventListener('click', openProfileModal);
 }
+
 
 
   bindNavigation(async (page) => {
@@ -41,7 +46,9 @@ if (userProfileEl) {
       await initFinancePage();
     } else if (page === 'notes') {
       await initNotesPage();
-    }
+    } else if (page === 'stats') {
+      await initStatsPage();
+  }
   });
 
   // Первичная загрузка главной
