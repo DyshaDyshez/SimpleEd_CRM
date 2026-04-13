@@ -75,6 +75,8 @@ async function loadAllDataFromSupabase() {
   } catch (e) {
     console.error('Ошибка загрузки данных дашборда:', e);
   }
+
+  
 }
 
 // ==================== РЕНДЕРИНГ ====================

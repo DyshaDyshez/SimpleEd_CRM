@@ -253,8 +253,47 @@
   </div>
 </template>
 
+
+<!-- Шаблон модального окна профиля учителя -->
+<template id="profileModalTemplate">
+  <div class="modal">
+    <div class="modal-card" style="max-width: 450px;">
+      <div class="modal-header">
+        <h2>Профиль учителя</h2>
+        <button class="close-modal">&times;</button>
+      </div>
+      <form id="profileForm">
+        <div class="form-group">
+          <label for="teacherName">Имя</label>
+          <input type="text" id="teacherName" placeholder="Ваше имя" required>
+        </div>
+        <div class="form-group">
+          <label for="teacherBirthday">Дата рождения</label>
+          <input type="date" id="teacherBirthday">
+        </div>
+        <div class="form-group">
+          <label for="teacherEmail">Email</label>
+          <input type="email" id="teacherEmail" disabled>
+          <small class="text-muted">Email изменить нельзя</small>
+        </div>
+        <div id="profileFormError" class="error-message"></div>
+        <div class="modal-actions">
+          <button type="submit" class="btn btn-primary">Сохранить</button>
+          <button type="button" class="btn btn-secondary close-modal">Отмена</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</template>
+
+
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js'></script>
 <script type="module" src="./modules/main.js"></script>
+<!-- Глобальный лоадер -->
+<div id="globalLoader" class="global-loader hidden">
+  <div class="loader-spinner"></div>
+</div>
 </body>
 </html>

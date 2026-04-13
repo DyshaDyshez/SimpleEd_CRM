@@ -8,12 +8,21 @@ import { initSchedulePage } from './schedule.js';
 import { initFinancePage } from './finance.js';
 import { initDashboard } from './dashboard.js'; // статический импорт
 import { initNotesPage } from './notes.js';
+import { openProfileModal } from './profile.js';
 
 let currentPage = 'dashboard';
 
 async function initApp() {
   const authOk = await initializeAuth();
   if (!authOk) return;
+
+    // После успешной авторизации (после initializeAuth)
+const userProfileEl = document.querySelector('.user-profile');
+if (userProfileEl) {
+  userProfileEl.style.cursor = 'pointer';
+  userProfileEl.addEventListener('click', openProfileModal);
+}
+
 
   bindNavigation(async (page) => {
     currentPage = page;

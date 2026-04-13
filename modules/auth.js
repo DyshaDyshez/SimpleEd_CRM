@@ -1,26 +1,35 @@
-// auth.js
+// modules/auth.js
 import supabase from './supabaseClient.js';
 
 let currentUser = null;
 let teacherProfile = null;
 
-// Экспортируем только то, что нужно другим модулям
 export async function initializeAuth() {
-  const { data: user } = await supabase.auth.getUser();
-  currentUser = user?.user || null;
-  if (!currentUser) {
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) {
+    console.warn('Пользователь не авторизован');
     window.location.href = 'auth.html';
     return false;
   }
+  currentUser = user;
 
-  // Загружаем профиль учителя
   const { data: profile } = await supabase
     .from('teacher_profiles')
     .select('*')
-    .eq('id', currentUser.id)
-    .single();
+    .eq('id', user.id)
+    .maybeSingle();
 
-  teacherProfile = profile || null;
+  if (!profile) {
+    const defaultName = user.email?.split('@')[0] || 'Учитель';
+    const { data: newProfile } = await supabase
+      .from('teacher_profiles')
+      .insert({ id: user.id, teacher_name: defaultName })
+      .select('*')
+      .single();
+    teacherProfile = newProfile;
+  } else {
+    teacherProfile = profile;
+  }
   return true;
 }
 
@@ -32,7 +41,39 @@ export function getTeacherProfile() {
   return teacherProfile;
 }
 
+export async function updateTeacherProfile(updates) {
+  if (!currentUser) throw new Error('Не авторизован');
+  const { data, error } = await supabase
+    .from('teacher_profiles')
+    .update(updates)
+    .eq('id', currentUser.id)
+    .select('*')
+    .single();
+  if (error) throw error;
+  teacherProfile = data;
+  return data;
+}
+
+export async function fetchTeacherProfile() {
+  if (!currentUser) return null;
+  const { data, error } = await supabase
+    .from('teacher_profiles')
+    .select('*')
+    .eq('id', currentUser.id)
+    .single();
+  if (error) throw error;
+  teacherProfile = data;
+  return data;
+}
+
 export async function logout() {
-  await supabase.auth.signOut();
+  const { error } = await supabase.auth.signOut();
+  if (error) {
+    console.error('Ошибка выхода:', error);
+    alert('Не удалось выйти');
+    return;
+  }
+  currentUser = null;
+  teacherProfile = null;
   window.location.href = 'auth.html';
 }

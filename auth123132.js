@@ -152,3 +152,23 @@ function showBlockedModal(teacherName, teacherEmail) {
         });
     }
 }
+
+export async function updateTeacherProfile(updates) {
+    const user = getCurrentUser();
+    if (!user) return { error: 'Not authenticated' };
+    return await supabase
+      .from('teacher_profiles')
+      .update(updates)
+      .eq('id', user.id);
+  }
+  
+  export async function fetchTeacherProfile() {
+    const user = getCurrentUser();
+    if (!user) return null;
+    const { data } = await supabase
+      .from('teacher_profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+    return data;
+  }
