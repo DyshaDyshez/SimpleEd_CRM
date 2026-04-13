@@ -99,9 +99,50 @@
   </div>
 </template>
 
+
+
+<!-- Финансы теплейт -->
 <template id="financeTemplate">
-  <div class="form-card"><h2>Финансы</h2><p>В разработке</p></div>
-</template>
+    <div class="form-card">
+      <div class="card-header">
+        <h2>Финансы</h2>
+        <button id="addPaymentGlobalBtn" class="btn btn-primary"><i class="fas fa-plus"></i> Добавить платёж</button>
+      </div>
+  
+      <!-- Сводка -->
+      <div class="finance-summary" id="financeSummary">
+        <div class="summary-item"><span>Всего оплат:</span> <strong id="totalCount">0</strong></div>
+        <div class="summary-item"><span>Сумма (₽):</span> <strong id="totalAmount">0</strong></div>
+        <div class="summary-item"><span>Уроков оплачено:</span> <strong id="totalLessons">0</strong></div>
+      </div>
+  
+      <!-- Фильтры -->
+      <div class="filters">
+        <select id="filterStudent"><option value="">Все ученики</option></select>
+        <select id="filterGroup"><option value="">Все группы</option></select>
+        <input type="date" id="filterDateFrom" placeholder="С даты">
+        <input type="date" id="filterDateTo" placeholder="По дату">
+        <select id="filterStatus"><option value="">Все статусы</option><option value="paid">Оплачен</option><option value="cancelled">Отменён</option></select>
+        <button id="applyFinanceFilters" class="btn btn-sm btn-primary">Применить</button>
+        <button id="resetFinanceFilters" class="btn btn-sm btn-secondary">Сбросить</button>
+      </div>
+  
+      <!-- Таблица -->
+      <div class="table-responsive">
+        <table id="financeTable">
+          <thead>
+            <tr>
+              <th>Дата</th><th>Ученик</th><th>Группа</th><th>Сумма</th><th>Уроков</th><th>Период</th><th>Заметка</th><th>Статус</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="financeTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </template>
+
+
+
 
 <template id="notesTemplate">
   <div class="form-card"><h2>Заметки</h2><p>В разработке</p></div>
@@ -131,7 +172,10 @@
           <button class="tab" data-tab="lessons">Расписание</button>
         </div>
         <div class="tab-content active" id="tabGroupInfo">
-          <form id="groupInfoForm"><div class="form-grid"><div class="form-group"><label>Название</label><input id="editGroupName" required></div><div class="form-group"><label>Предмет</label><input id="editGroupSubject"></div></div></form>
+          <form id="groupInfoForm"><div class="form-group">
+            <label>Заметки</label>
+            <textarea id="groupNotes" rows="3"></textarea>
+          </div><div class="form-grid"><div class="form-group"><label>Название</label><input id="editGroupName" required></div><div class="form-group"><label>Предмет</label><input id="editGroupSubject"></div></div></form>
         </div>
         <div class="tab-content" id="tabGroupStudents">
           <div class="students-list-full"></div>

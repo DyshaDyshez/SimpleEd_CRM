@@ -5,6 +5,7 @@ import { renderPage, bindNavigation, updateUserInfo } from './ui.js';
 import { initGroupsPage } from './groups.js';
 import { initStudentsPage } from './students.js'; // Импортируем
 import { initSchedulePage } from './schedule.js'; // Импортируем
+import { initFinancePage } from './finance.js';
 
 // Глобальный state для текущей страницы
 let currentPage = 'dashboard';
@@ -28,11 +29,24 @@ async function initApp() {
       await initSchedulePage();
     }
     // Здесь можно добавить другие страницы: finance, notes и т.д.
+    else if (page === 'finance') {
+    await initFinancePage();
+    }
+
+
+
   });
 
   // Рендерим главную страницу
   renderPage('dashboard');
+
+
+
+  
 }
+
+
+
 
 // Запуск
 document.addEventListener('DOMContentLoaded', initApp);
