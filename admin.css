@@ -353,3 +353,8 @@
     font-size: 0.9rem;
     min-width: 180px;
 }
+
+.badge.archived {
+    background: var(--neutral-gray);
+    color: var(--text-secondary);
+}

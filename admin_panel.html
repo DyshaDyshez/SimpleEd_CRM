@@ -81,6 +81,23 @@
                     </form>
                 </div>
 
+                <!-- Внутри секции teachersTab, перед таблицей -->
+                <div class="filters" style="margin-bottom: 1rem;">
+                    <select id="teacherStatusFilter">
+                    <option value="all">Все (кроме архива)</option>
+                    <option value="active">Активные</option>
+                    <option value="inactive">Неактивные</option>
+                    <option value="vip">VIP</option>
+                    <option value="blocked">Заблокированные</option>
+                    </select>
+                    <button class="btn btn-sm btn-secondary" id="showArchivedBtn">
+                    <i class="fas fa-archive"></i> Архив
+                    </button>
+                    <button class="btn btn-sm btn-primary" id="showActiveBtn" style="display: none;">
+                    <i class="fas fa-users"></i> Активные
+                    </button>
+                </div>
+
                 <!-- Таблица -->
                 <div class="table-responsive">
                     <table>

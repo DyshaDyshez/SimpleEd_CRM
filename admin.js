@@ -1,5 +1,5 @@
 // ==========================================
-// SIMPLEED CRM — ЛОГИКА АДМИН-ПАНЕЛИ (НОВАЯ)
+// SIMPLEED CRM — ЛОГИКА АДМИН-ПАНЕЛИ (С АРХИВОМ)
 // ==========================================
 
 (function(){
@@ -27,6 +27,8 @@
     const tabs = document.querySelectorAll('[data-tab]');
     const tabContents = document.querySelectorAll('.tab-content');
 
+    let showArchived = false;
+
     // Отображение имени админа
     document.getElementById('adminNameDisplay').textContent = admin.name || 'Админ';
     document.getElementById('adminAvatar').textContent = (admin.name || 'A')[0].toUpperCase();
@@ -41,21 +43,31 @@
         document.getElementById('globalLoader')?.classList.add('hidden');
     }
 
-
-    // Загрузка списка преподавателей
+    // ========== ЗАГРУЗКА ПРЕПОДАВАТЕЛЕЙ (С УЧЁТОМ АРХИВА) ==========
     async function loadTeachers() {
         try {
-            const { data, error } = await supabase
+            let query = supabase
                 .from('teacher_profiles')
                 .select('*, teacher_payments(paid_until)')
                 .order('created_at', { ascending: false });
-
+            
+            if (showArchived) {
+                query = query.eq('activity_status', 'archived');
+            } else {
+                query = query.neq('activity_status', 'archived');
+                const statusFilter = document.getElementById('teacherStatusFilter')?.value;
+                if (statusFilter && statusFilter !== 'all') {
+                    query = query.eq('activity_status', statusFilter);
+                }
+            }
+    
+            const { data, error } = await query;
             if (error) throw error;
             if (!data?.length) {
                 tbody.innerHTML = `<tr><td colspan="7">Нет преподавателей</td></tr>`;
                 return;
             }
-
+    
             const now = new Date();
             tbody.innerHTML = data.map(t => {
                 const access = t.access_until ? new Date(t.access_until) : null;
@@ -63,7 +75,7 @@
                 const paidUntil = lastPay?.paid_until ? new Date(lastPay.paid_until) : null;
                 const warning = paidUntil && (paidUntil - now) < 3*24*3600*1000 && paidUntil > now;
                 const status = t.activity_status || (access && access > now ? 'active' : 'inactive');
-
+    
                 return `<tr>
                     <td>${t.teacher_name || '—'}</td>
                     <td>${t.email}</td>
@@ -71,41 +83,83 @@
                     <td>${formatDate(access)}</td>
                     <td><span class="badge ${status}">${status}</span></td>
                     <td>${formatDate(paidUntil)} ${warning ? '<i class="fas fa-exclamation-triangle" style="color:#d32f2f;"></i>' : ''}</td>
-                    <td><button class="btn-icon view-card" data-id="${t.id}"><i class="fas fa-id-card"></i></button></td>
+                    <td>
+                        <button class="btn-icon view-card" data-id="${t.id}"><i class="fas fa-id-card"></i></button>
+                        ${!showArchived ? `
+                            <button class="btn-icon archive-teacher" data-id="${t.id}" title="В архив">
+                                <i class="fas fa-archive"></i>
+                            </button>
+                        ` : `
+                            <button class="btn-icon unarchive-teacher" data-id="${t.id}" title="Восстановить">
+                                <i class="fas fa-undo"></i>
+                            </button>
+                        `}
+                    </td>
                 </tr>`;
             }).join('');
-
+    
             document.querySelectorAll('.view-card').forEach(btn => {
                 btn.addEventListener('click', () => openCard(btn.dataset.id));
             });
+            
+            if (!showArchived) {
+                document.querySelectorAll('.archive-teacher').forEach(btn => {
+                    btn.addEventListener('click', () => archiveTeacher(btn.dataset.id));
+                });
+            } else {
+                document.querySelectorAll('.unarchive-teacher').forEach(btn => {
+                    btn.addEventListener('click', () => unarchiveTeacher(btn.dataset.id));
+                });
+            }
+    
+            document.querySelector('#teachersTab h2').innerHTML = 
+                `<i class="fas fa-${showArchived ? 'archive' : 'chalkboard-user'}"></i> ` +
+                `${showArchived ? 'Архив преподавателей' : 'Преподаватели'}`;
+    
         } catch (err) {
             console.error(err);
             tbody.innerHTML = `<tr><td colspan="7">Ошибка загрузки</td></tr>`;
         }
-        // В конце функции loadTeachers(), после рендеринга таблицы
-checkBirthdays();
     }
 
+    // ========== АРХИВАЦИЯ / ВОССТАНОВЛЕНИЕ ==========
+    async function archiveTeacher(teacherId) {
+        if (!confirm('Переместить преподавателя в архив? Его данные сохранятся, но он не будет отображаться в активных списках.')) return;
+        const { error } = await supabase
+            .from('teacher_profiles')
+            .update({ activity_status: 'archived' })
+            .eq('id', teacherId);
+        if (error) { alert('Ошибка: ' + error.message); return; }
+        loadTeachers();
+    }
 
+    async function unarchiveTeacher(teacherId) {
+        if (!confirm('Восстановить преподавателя из архива? Какой статус установить?')) return;
+        const newStatus = prompt('Введите новый статус (active, inactive, vip, blocked):', 'active');
+        if (!['active', 'inactive', 'vip', 'blocked'].includes(newStatus)) {
+            alert('Недопустимый статус');
+            return;
+        }
+        const { error } = await supabase
+            .from('teacher_profiles')
+            .update({ activity_status: newStatus })
+            .eq('id', teacherId);
+        if (error) { alert('Ошибка: ' + error.message); return; }
+        loadTeachers();
+    }
 
+    // ========== ПОЗДРАВЛЕНИЕ С ДР ==========
     async function sendBirthdayGreeting(teacherId, teacherName, btn) {
         try {
             const currentYear = new Date().getFullYear();
             
-            // 1. Сохраняем факт отправки поздравления
+            // Сохраняем факт поздравления
             const { error: greetingError } = await supabase
                 .from('birthday_greetings')
-                .insert({
-                    teacher_id: teacherId,
-                    greeting_year: currentYear
-                });
-    
-            if (greetingError) {
-                console.error('Ошибка сохранения факта поздравления:', greetingError);
-                // Не прерываем, пробуем отправить уведомление
-            }
-    
-            // 2. Создаём уведомление для учителя
+                .insert({ teacher_id: teacherId, greeting_year: currentYear });
+            if (greetingError) console.error('Ошибка сохранения факта поздравления:', greetingError);
+
+            // Создаём уведомление
             const { error: notifError } = await supabase
                 .from('notifications')
                 .insert({
@@ -116,251 +170,215 @@ checkBirthdays();
                     is_read: false,
                     created_at: new Date().toISOString()
                 });
-    
             if (notifError) {
                 console.error('Ошибка отправки поздравления:', notifError);
                 alert('Не удалось отправить уведомление');
                 return;
             }
-    
+
             alert(`Поздравление для ${teacherName} отправлено!`);
-            
-            // Меняем кнопку
             if (btn) {
                 btn.disabled = true;
                 btn.innerHTML = '<i class="fas fa-check"></i> Отправлено';
             }
-    
-            // Через 2 секунды обновляем страницу, чтобы алерт исчез
-            setTimeout(() => {
-                loadTeachers(); // перезагружаем список, что вызовет checkBirthdays заново
-            }, 1500);
-    
+            setTimeout(() => loadTeachers(), 1500);
         } catch (err) {
             console.error(err);
             alert('Ошибка: ' + err.message);
         }
     }
 
-async function sendBirthdayGreeting(teacherId, teacherName, btn) {
-    try {
-        // Создаём уведомление для учителя
-        const { error } = await supabase
-            .from('notifications')
-            .insert({
-                teacher_id: teacherId,
-                type: 'birthday',
-                title: 'С днём рождения! 🎉',
-                content: `Дорогой(ая) ${teacherName}, поздравляем Вас с днём рождения! Желаем успехов, вдохновения и благодарных учеников!`,
-                is_read: false,
-                created_at: new Date().toISOString()
-            });
+    // ========== КАРТОЧКА ПРЕПОДАВАТЕЛЯ ==========
+    async function openCard(teacherId) {
+        modal.classList.remove('hidden');
+        modalTitle.textContent = 'Загрузка...';
+        modalContent.innerHTML = '<p style="text-align:center;padding:2rem;">Загрузка данных...</p>';
 
-        if (error) {
-            console.error('Ошибка отправки поздравления:', error);
-            alert('Не удалось отправить поздравление');
-            return;
-        }
+        try {
+            const { data: profile, error: profErr } = await supabase
+                .from('teacher_profiles')
+                .select('*')
+                .eq('id', teacherId)
+                .single();
+            if (profErr) throw profErr;
 
-        alert(`Поздравление для ${teacherName} отправлено!`);
-        if (btn) {
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-check"></i> Отправлено';
-        }
-    } catch (err) {
-        console.error(err);
-        alert('Ошибка: ' + err.message);
-    }
-}
+            const [lessRes, studRes, payRes, noteRes] = await Promise.allSettled([
+                supabase.from('lessons').select('*', { count: 'exact', head: true }).eq('teacher_id', teacherId),
+                supabase.from('students').select('*', { count: 'exact', head: true }).eq('teacher_id', teacherId),
+                supabase.from('teacher_payments').select('*').eq('teacher_id', teacherId).order('payment_date', { ascending: false }),
+                supabase.from('teacher_notes').select('*').eq('teacher_id', teacherId).order('created_at', { ascending: false })
+            ]);
 
+            const lessons = lessRes.status === 'fulfilled' ? lessRes.value.count : '?';
+            const students = studRes.status === 'fulfilled' ? studRes.value.count : '?';
+            const payments = payRes.status === 'fulfilled' ? payRes.value.data : [];
+            const notes = noteRes.status === 'fulfilled' ? noteRes.value.data : [];
 
-
-
-    // Открытие карточки преподавателя (с ДР и кнопкой поздравления)
-async function openCard(teacherId) {
-    modal.classList.remove('hidden');
-    modalTitle.textContent = 'Загрузка...';
-    modalContent.innerHTML = '<p style="text-align:center;padding:2rem;">Загрузка данных...</p>';
-
-    try {
-        const { data: profile, error: profErr } = await supabase
-            .from('teacher_profiles')
-            .select('*')
-            .eq('id', teacherId)
-            .single();
-        if (profErr) throw profErr;
-
-        const [lessRes, studRes, payRes, noteRes] = await Promise.allSettled([
-            supabase.from('lessons').select('*', { count: 'exact', head: true }).eq('teacher_id', teacherId),
-            supabase.from('students').select('*', { count: 'exact', head: true }).eq('teacher_id', teacherId),
-            supabase.from('teacher_payments').select('*').eq('teacher_id', teacherId).order('payment_date', { ascending: false }),
-            supabase.from('teacher_notes').select('*').eq('teacher_id', teacherId).order('created_at', { ascending: false })
-        ]);
-
-        const lessons = lessRes.status === 'fulfilled' ? lessRes.value.count : '?';
-        const students = studRes.status === 'fulfilled' ? studRes.value.count : '?';
-        const payments = payRes.status === 'fulfilled' ? payRes.value.data : [];
-        const notes = noteRes.status === 'fulfilled' ? noteRes.value.data : [];
-
-        // Проверяем, нужно ли показывать кнопку поздравления
-        const currentYear = new Date().getFullYear();
-        const { data: sentGreeting } = await supabase
-            .from('birthday_greetings')
-            .select('id')
-            .eq('teacher_id', teacherId)
-            .eq('greeting_year', currentYear)
-            .maybeSingle();
-
-        const alreadyGreeted = !!sentGreeting;
-        
-        let showBirthdayButton = false;
-        if (profile.birthday && !alreadyGreeted) {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const birthDate = new Date(profile.birthday);
-            const birthMonth = birthDate.getMonth();
-            const birthDay = birthDate.getDate();
+            // Проверка на кнопку поздравления
+            const currentYear = new Date().getFullYear();
+            const { data: sentGreeting } = await supabase
+                .from('birthday_greetings')
+                .select('id')
+                .eq('teacher_id', teacherId)
+                .eq('greeting_year', currentYear)
+                .maybeSingle();
+            const alreadyGreeted = !!sentGreeting;
             
-            for (let i = 0; i <= 2; i++) {
-                const checkDate = new Date(today);
-                checkDate.setDate(today.getDate() + i);
-                if (checkDate.getMonth() === birthMonth && checkDate.getDate() === birthDay) {
-                    showBirthdayButton = true;
-                    break;
+            let showBirthdayButton = false;
+            if (profile.birthday && !alreadyGreeted) {
+                const today = new Date(); today.setHours(0,0,0,0);
+                const birthDate = new Date(profile.birthday);
+                const birthMonth = birthDate.getMonth(), birthDay = birthDate.getDate();
+                for (let i = 0; i <= 2; i++) {
+                    const checkDate = new Date(today);
+                    checkDate.setDate(today.getDate() + i);
+                    if (checkDate.getMonth() === birthMonth && checkDate.getDate() === birthDay) {
+                        showBirthdayButton = true; break;
+                    }
                 }
             }
-        }
 
-        const birthdayFormatted = profile.birthday 
-            ? new Date(profile.birthday).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })
-            : 'не указана';
+            const birthdayFormatted = profile.birthday 
+                ? new Date(profile.birthday).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })
+                : 'не указана';
 
-        modalTitle.textContent = profile.teacher_name || 'Преподаватель';
+            modalTitle.textContent = profile.teacher_name || 'Преподаватель';
 
-        modalContent.innerHTML = `
-            <div class="stats-grid">
-                <div class="stat-item"><div class="stat-value">${lessons}</div><div class="stat-label">уроков</div></div>
-                <div class="stat-item"><div class="stat-value">${students}</div><div class="stat-label">учеников</div></div>
-                <div class="stat-item"><div class="stat-value">${payments.length}</div><div class="stat-label">платежей</div></div>
-            </div>
-            
-            <div style="background: var(--neutral-light); padding: 1rem; border-radius: var(--border-radius-sm); margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
-                <div>
-                    <i class="fas fa-birthday-cake" style="color: var(--primary-warm); margin-right: 0.5rem;"></i>
-                    <strong>День рождения:</strong> ${birthdayFormatted}
+            modalContent.innerHTML = `
+                <div class="stats-grid">
+                    <div class="stat-item"><div class="stat-value">${lessons}</div><div class="stat-label">уроков</div></div>
+                    <div class="stat-item"><div class="stat-value">${students}</div><div class="stat-label">учеников</div></div>
+                    <div class="stat-item"><div class="stat-value">${payments.length}</div><div class="stat-label">платежей</div></div>
                 </div>
-                ${showBirthdayButton ? `
-                    <button class="btn btn-sm btn-primary send-birthday-wish-card" data-id="${teacherId}" data-name="${profile.teacher_name}">
-                        <i class="fas fa-gift"></i> Поздравить
-                    </button>
-                ` : ''}
-            </div>
-
-            <h3>Редактирование</h3>
-            <form id="editForm">
-                <div class="form-grid">
-                    <div class="form-group"><label>Имя</label><input id="editName" value="${profile.teacher_name || ''}"></div>
-                    <div class="form-group"><label>Email</label><input id="editEmail" value="${profile.email}"></div>
-                    <div class="form-group"><label>Пароль</label><input id="editPassword" placeholder="Новый пароль"></div>
-                    <div class="form-group"><label>Дата рождения</label><input type="date" id="editBirthday" value="${profile.birthday || ''}"></div>
-                    <div class="form-group"><label>Тариф</label><select id="editPlan">
-                        <option ${profile.subscription_plan === 'trial' ? 'selected' : ''}>trial</option>
-                        <option ${profile.subscription_plan === 'pro' ? 'selected' : ''}>pro</option>
-                        <option ${profile.subscription_plan === 'vip' ? 'selected' : ''}>vip</option>
-                    </select></div>
-                    <div class="form-group"><label>Доступ до</label><input type="date" id="editAccess" value="${profile.access_until?.slice(0,10) || ''}"></div>
-                    <div class="form-group"><label>Статус</label><select id="editStatus">
-                        <option ${profile.activity_status === 'active' ? 'selected' : ''}>active</option>
-                        <option ${profile.activity_status === 'inactive' ? 'selected' : ''}>inactive</option>
-                        <option ${profile.activity_status === 'vip' ? 'selected' : ''}>vip</option>
-                        <option ${profile.activity_status === 'blocked' ? 'selected' : ''}>blocked</option>
-                    </select></div>
+                
+                <div style="background: var(--neutral-light); padding: 1rem; border-radius: var(--border-radius-sm); margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+                    <div>
+                        <i class="fas fa-birthday-cake" style="color: var(--primary-warm); margin-right: 0.5rem;"></i>
+                        <strong>День рождения:</strong> ${birthdayFormatted}
+                    </div>
+                    ${showBirthdayButton ? `
+                        <button class="btn btn-sm btn-primary send-birthday-wish-card" data-id="${teacherId}" data-name="${profile.teacher_name}">
+                            <i class="fas fa-gift"></i> Поздравить
+                        </button>
+                    ` : ''}
                 </div>
-                <button type="submit" class="btn btn-success mt-2">Сохранить</button>
-            </form>
-            <h3>Оплаты</h3>
-            <button class="btn btn-primary" id="showAddPayment"><i class="fas fa-plus"></i> Добавить оплату</button>
-            <div id="addPaymentBlock" style="display:none; margin-top:1rem; padding:1rem; background:#FEFAE0; border-radius:12px;">
-                <div style="display:flex; gap:1rem; flex-wrap:wrap;">
-                    <input type="number" id="payAmount" placeholder="Сумма" style="width:120px;">
-                    <input type="date" id="payUntil">
-                    <input type="text" id="payNote" placeholder="Заметка" style="flex:1;">
-                    <button class="btn btn-success" id="savePayment">Сохранить</button>
+
+                <h3>Редактирование</h3>
+                <form id="editForm">
+                    <div class="form-grid">
+                        <div class="form-group"><label>Имя</label><input id="editName" value="${profile.teacher_name || ''}"></div>
+                        <div class="form-group"><label>Email</label><input id="editEmail" value="${profile.email}"></div>
+                        <div class="form-group"><label>Пароль</label><input id="editPassword" placeholder="Новый пароль"></div>
+                        <div class="form-group"><label>Дата рождения</label><input type="date" id="editBirthday" value="${profile.birthday || ''}"></div>
+                        <div class="form-group"><label>Тариф</label><select id="editPlan">
+                            <option ${profile.subscription_plan === 'trial' ? 'selected' : ''}>trial</option>
+                            <option ${profile.subscription_plan === 'pro' ? 'selected' : ''}>pro</option>
+                            <option ${profile.subscription_plan === 'vip' ? 'selected' : ''}>vip</option>
+                        </select></div>
+                        <div class="form-group"><label>Доступ до</label><input type="date" id="editAccess" value="${profile.access_until?.slice(0,10) || ''}"></div>
+                        <div class="form-group"><label>Статус</label><select id="editStatus">
+                            <option ${profile.activity_status === 'active' ? 'selected' : ''}>active</option>
+                            <option ${profile.activity_status === 'inactive' ? 'selected' : ''}>inactive</option>
+                            <option ${profile.activity_status === 'vip' ? 'selected' : ''}>vip</option>
+                            <option ${profile.activity_status === 'blocked' ? 'selected' : ''}>blocked</option>
+                            <option ${profile.activity_status === 'archived' ? 'selected' : ''}>archived</option>
+                        </select></div>
+                    </div>
+                    <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                        <button type="submit" class="btn btn-success">Сохранить</button>
+                        <button type="button" class="btn btn-warning" id="archiveFromCardBtn">
+                            <i class="fas fa-archive"></i> В архив
+                        </button>
+                    </div>
+                </form>
+                <h3>Оплаты</h3>
+                <button class="btn btn-primary" id="showAddPayment"><i class="fas fa-plus"></i> Добавить оплату</button>
+                <div id="addPaymentBlock" style="display:none; margin-top:1rem; padding:1rem; background:#FEFAE0; border-radius:12px;">
+                    <div style="display:flex; gap:1rem; flex-wrap:wrap;">
+                        <input type="number" id="payAmount" placeholder="Сумма" style="width:120px;">
+                        <input type="date" id="payUntil">
+                        <input type="text" id="payNote" placeholder="Заметка" style="flex:1;">
+                        <button class="btn btn-success" id="savePayment">Сохранить</button>
+                    </div>
                 </div>
-            </div>
-            <div style="margin-top:1rem;">
-                ${payments.map(p => `<div><strong>${p.payment_date}</strong> — ${p.amount}₽ до ${p.paid_until} (${p.notes || ''})</div>`).join('') || 'Нет оплат'}
-            </div>
-            <h3>Заметки</h3>
-            <textarea id="newNote" placeholder="Добавить заметку..." rows="2" style="width:100%; margin-bottom:0.5rem;"></textarea>
-            <button class="btn btn-primary" id="saveNote">Добавить</button>
-            <div style="margin-top:1rem;">
-                ${notes.map(n => `<div><em>${n.created_at.slice(0,10)}</em> ${n.note}</div>`).join('') || 'Нет заметок'}
-            </div>
-        `;
+                <div style="margin-top:1rem;">
+                    ${payments.map(p => `<div><strong>${p.payment_date}</strong> — ${p.amount}₽ до ${p.paid_until} (${p.notes || ''})</div>`).join('') || 'Нет оплат'}
+                </div>
+                <h3>Заметки</h3>
+                <textarea id="newNote" placeholder="Добавить заметку..." rows="2" style="width:100%; margin-bottom:0.5rem;"></textarea>
+                <button class="btn btn-primary" id="saveNote">Добавить</button>
+                <div style="margin-top:1rem;">
+                    ${notes.map(n => `<div><em>${n.created_at.slice(0,10)}</em> ${n.note}</div>`).join('') || 'Нет заметок'}
+                </div>
+            `;
 
-        // Если есть кнопка поздравления — вешаем обработчик
-        const birthdayBtn = modalContent.querySelector('.send-birthday-wish-card');
-        if (birthdayBtn) {
-            birthdayBtn.addEventListener('click', async () => {
-                await sendBirthdayGreeting(teacherId, profile.teacher_name, birthdayBtn);
-            });
-        }
-
-        document.getElementById('editForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const newPass = document.getElementById('editPassword').value;
-            const birthday = document.getElementById('editBirthday').value;
-            const updates = {
-                teacher_name: document.getElementById('editName').value,
-                email: document.getElementById('editEmail').value,
-                birthday: birthday || null,
-                subscription_plan: document.getElementById('editPlan').value,
-                access_until: document.getElementById('editAccess').value,
-                activity_status: document.getElementById('editStatus').value
-            };
-            await supabase.from('teacher_profiles').update(updates).eq('id', teacherId);
-            if (newPass) {
-                await supabase.auth.admin.updateUserById(teacherId, { password: newPass });
+            // Кнопка поздравления
+            const birthdayBtn = modalContent.querySelector('.send-birthday-wish-card');
+            if (birthdayBtn) {
+                birthdayBtn.addEventListener('click', async () => {
+                    await sendBirthdayGreeting(teacherId, profile.teacher_name, birthdayBtn);
+                });
             }
-            modal.classList.add('hidden');
-            loadTeachers();
-        });
 
-        document.getElementById('showAddPayment').addEventListener('click', () => {
-            document.getElementById('addPaymentBlock').style.display = 'block';
-        });
-        document.getElementById('savePayment').addEventListener('click', async () => {
-            const amount = document.getElementById('payAmount').value;
-            const until = document.getElementById('payUntil').value;
-            const note = document.getElementById('payNote').value;
-            if (!amount || !until) { alert('Введите сумму и дату'); return; }
-            await supabase.from('teacher_payments').insert({ teacher_id: teacherId, amount, paid_until: until, notes: note });
-            openCard(teacherId);
-            loadTeachers();
-        });
-        document.getElementById('saveNote').addEventListener('click', async () => {
-            const note = document.getElementById('newNote').value;
-            if (!note) return;
-            await supabase.from('teacher_notes').insert({ teacher_id: teacherId, note });
-            openCard(teacherId);
-        });
+            // Кнопка "В архив" из карточки
+            document.getElementById('archiveFromCardBtn')?.addEventListener('click', () => {
+                modal.classList.add('hidden');
+                archiveTeacher(teacherId);
+            });
 
-    } catch (err) {
-        console.error(err);
-        modalContent.innerHTML = `<p class="error-message">Ошибка: ${err.message}</p>`;
+            document.getElementById('editForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const newPass = document.getElementById('editPassword').value;
+                const birthday = document.getElementById('editBirthday').value;
+                const updates = {
+                    teacher_name: document.getElementById('editName').value,
+                    email: document.getElementById('editEmail').value,
+                    birthday: birthday || null,
+                    subscription_plan: document.getElementById('editPlan').value,
+                    access_until: document.getElementById('editAccess').value,
+                    activity_status: document.getElementById('editStatus').value
+                };
+                await supabase.from('teacher_profiles').update(updates).eq('id', teacherId);
+                if (newPass) {
+                    await supabase.auth.admin.updateUserById(teacherId, { password: newPass });
+                }
+                modal.classList.add('hidden');
+                loadTeachers();
+            });
+
+            document.getElementById('showAddPayment').addEventListener('click', () => {
+                document.getElementById('addPaymentBlock').style.display = 'block';
+            });
+            document.getElementById('savePayment').addEventListener('click', async () => {
+                const amount = document.getElementById('payAmount').value;
+                const until = document.getElementById('payUntil').value;
+                const note = document.getElementById('payNote').value;
+                if (!amount || !until) { alert('Введите сумму и дату'); return; }
+                await supabase.from('teacher_payments').insert({ teacher_id: teacherId, amount, paid_until: until, notes: note });
+                openCard(teacherId);
+                loadTeachers();
+            });
+            document.getElementById('saveNote').addEventListener('click', async () => {
+                const note = document.getElementById('newNote').value;
+                if (!note) return;
+                await supabase.from('teacher_notes').insert({ teacher_id: teacherId, note });
+                openCard(teacherId);
+            });
+
+        } catch (err) {
+            console.error(err);
+            modalContent.innerHTML = `<p class="error-message">Ошибка: ${err.message}</p>`;
+        }
     }
-}
 
     // Закрытие модалки
     closeModal.addEventListener('click', () => modal.classList.add('hidden'));
     window.addEventListener('click', (e) => { if (e.target === modal) modal.classList.add('hidden'); });
 
-    // ========== НОВОЕ: ДОБАВЛЕНИЕ УЧИТЕЛЯ ЧЕРЕЗ SIGNUP ==========
+    // ========== ДОБАВЛЕНИЕ УЧИТЕЛЯ ==========
     newForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         formError.textContent = '';
-
         const email = document.getElementById('newEmail').value.trim();
         const name = document.getElementById('newName').value.trim();
         const password = document.getElementById('newPassword').value;
@@ -374,44 +392,29 @@ async function openCard(teacherId) {
         }
 
         try {
-            // 1. Регистрируем пользователя через Supabase Auth
             const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-                email: email,
-                password: password,
-                options: {
-                    data: { teacher_name: name }
-                }
+                email, password,
+                options: { data: { teacher_name: name } }
             });
-
             if (signUpError) throw signUpError;
 
             const userId = signUpData.user?.id;
             if (!userId) throw new Error('Не удалось получить ID пользователя');
 
-            // 2. Добавляем запись в teacher_profiles
             const accessDateObj = accessDate ? new Date(accessDate) : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
-            
-            // 2. Добавляем или обновляем запись в teacher_profiles
-const { error: profileError } = await supabase
-.from('teacher_profiles')
-.upsert({
-    id: userId,
-    email: email,
-    teacher_name: name,
-    subscription_plan: plan,
-    plain_password: password,
-    access_until: accessDateObj.toISOString(),
-    activity_status: status
-}, { onConflict: 'id' });
-
+            const { error: profileError } = await supabase
+                .from('teacher_profiles')
+                .upsert({
+                    id: userId, email, teacher_name: name,
+                    subscription_plan: plan, plain_password: password,
+                    access_until: accessDateObj.toISOString(), activity_status: status
+                }, { onConflict: 'id' });
             if (profileError) throw profileError;
 
-            // Успех
             addFormDiv.classList.add('hidden');
             newForm.reset();
             loadTeachers();
             alert(`Учитель ${name} успешно создан!`);
-
         } catch (err) {
             console.error('Ошибка создания учителя:', err);
             formError.textContent = err.message;
@@ -426,14 +429,12 @@ const { error: profileError } = await supabase
         const { data } = await supabase
             .from('teacher_profiles')
             .select('*, teacher_payments(paid_until)');
-
         const soon = data.filter(t => {
             const last = t.teacher_payments?.sort((a,b)=> new Date(b.paid_until)-new Date(a.paid_until))[0];
             if (!last?.paid_until) return false;
             const days = (new Date(last.paid_until) - new Date()) / (1000*3600*24);
             return days > 0 && days <= 3;
         });
-
         if (soon.length) {
             alert(soon.map(t => `${t.teacher_name} (${t.email}) – до ${t.teacher_payments[0].paid_until}`).join('\n'));
             if (soon.length === 1) openCard(soon[0].id);
@@ -468,6 +469,22 @@ const { error: profileError } = await supabase
     });
     document.getElementById('backToCrmBtn').addEventListener('click', () => window.location.href = 'index.html');
 
+    // Фильтры архив/активные
+    document.getElementById('teacherStatusFilter')?.addEventListener('change', loadTeachers);
+    document.getElementById('showArchivedBtn')?.addEventListener('click', () => {
+        showArchived = true;
+        document.getElementById('showArchivedBtn').style.display = 'none';
+        document.getElementById('showActiveBtn').style.display = 'inline-block';
+        document.getElementById('teacherStatusFilter').style.display = 'none';
+        loadTeachers();
+    });
+    document.getElementById('showActiveBtn')?.addEventListener('click', () => {
+        showArchived = false;
+        document.getElementById('showArchivedBtn').style.display = 'inline-block';
+        document.getElementById('showActiveBtn').style.display = 'none';
+        document.getElementById('teacherStatusFilter').style.display = 'inline-block';
+        loadTeachers();
+    });
     // Старт
     loadTeachers();
 
@@ -1179,6 +1196,65 @@ paymentsTabObserver.observe(document.getElementById('paymentsTab'), {
     attributeFilter: ['class'] 
 });
     
+async function archiveTeacher(teacherId) {
+    if (!confirm('Переместить преподавателя в архив? Его данные сохранятся, но он не будет отображаться в активных списках.')) return;
+    
+    const { error } = await supabase
+        .from('teacher_profiles')
+        .update({ activity_status: 'archived' })
+        .eq('id', teacherId);
+        
+    if (error) {
+        alert('Ошибка: ' + error.message);
+        return;
+    }
+    
+    loadTeachers();
+}
+
+async function unarchiveTeacher(teacherId) {
+    if (!confirm('Восстановить преподавателя из архива? Какой статус установить?')) return;
+    
+    const newStatus = prompt('Введите новый статус (active, inactive, vip, blocked):', 'active');
+    if (!['active', 'inactive', 'vip', 'blocked'].includes(newStatus)) {
+        alert('Недопустимый статус');
+        return;
+    }
+    
+    const { error } = await supabase
+        .from('teacher_profiles')
+        .update({ activity_status: newStatus })
+        .eq('id', teacherId);
+        
+    if (error) {
+        alert('Ошибка: ' + error.message);
+        return;
+    }
+    
+    loadTeachers();
+}
+
+// Внутри инициализации админ-панели
+document.getElementById('teacherStatusFilter')?.addEventListener('change', loadTeachers);
+
+document.getElementById('showArchivedBtn')?.addEventListener('click', () => {
+    showArchived = true;
+    document.getElementById('showArchivedBtn').style.display = 'none';
+    document.getElementById('showActiveBtn').style.display = 'inline-block';
+    document.getElementById('teacherStatusFilter').style.display = 'none';
+    loadTeachers();
+});
+
+document.getElementById('showActiveBtn')?.addEventListener('click', () => {
+    showArchived = false;
+    document.getElementById('showArchivedBtn').style.display = 'inline-block';
+    document.getElementById('showActiveBtn').style.display = 'none';
+    document.getElementById('teacherStatusFilter').style.display = 'inline-block';
+    loadTeachers();
+});
+
+
+
 
 
 

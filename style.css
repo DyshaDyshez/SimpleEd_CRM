@@ -30,6 +30,8 @@ SIMPLEED CRM — СТИЛИ (v4.0 — ФИНАНСЫ + ФИЛЬТРЫ)
     --border-radius-md: 16px;
     --border-radius-lg: 24px;
     --transition: all 0.25s ease;
+
+    
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }

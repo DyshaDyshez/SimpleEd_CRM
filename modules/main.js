@@ -15,6 +15,8 @@ import { initLessonsPage } from './lessons.js';
 
 let currentPage = 'dashboard';
 
+
+
 async function initApp() {
   const authOk = await initializeAuth();
   if (!authOk) return;
@@ -60,3 +62,4 @@ if (userProfileEl) {
 }
 
 document.addEventListener('DOMContentLoaded', initApp);
+
