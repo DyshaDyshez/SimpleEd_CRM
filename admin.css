@@ -384,3 +384,42 @@
     background: var(--primary-warm);
     border-radius: 0 4px 4px 0;
 }
+
+.btn-info {
+    background: #5B8C6F;
+    color: white;
+}
+.btn-info:hover {
+    background: #4A6E58;
+}
+
+/* ===== СТИЛИ ДЛЯ ТАРИФОВ ===== */
+.badge.plan-trial {
+    background: #E9E1D4;
+    color: #5C4F42;
+}
+.badge.plan-pro {
+    background: #D4A373;
+    color: white;
+}
+.badge.plan-vip {
+    background: #b1661c;
+    color: white;
+}
+.badge.badge.plan-6.месяцев {
+    background: #ff6600;
+    color: white;
+}
+
+/* Селект с тарифами */
+#editPlan {
+    background: white;
+    font-weight: 500;
+    padding: 0.6rem;
+    border: 1px solid var(--neutral-gray);
+    border-radius: 8px;
+}
+#editPlan option {
+    padding: 0.5rem;
+}
+
