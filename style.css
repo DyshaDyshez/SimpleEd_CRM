@@ -2,10 +2,10 @@
 SIMPLEED CRM — СТИЛИ (v4.0 — ФИНАНСЫ + ФИЛЬТРЫ)
 ======================================== */
 :root {
-    --primary-warm: #D4A373;
+    --primary-warm: #cea47b;
     --primary-soft: #FAEDCD;
     --primary-medium: #E9C46A;
-    --primary-deep: #CC9C5B;
+    --primary-deep: #cf9749;
     --neutral-light: #FEFAE0;
     --neutral-gray: #E9E1D4;
     --neutral-dark: #8B7E6C;
@@ -48,7 +48,7 @@ body {
 
 /* Сайдбар */
 .sidebar {
-    width: 260px; background: white; padding: 1.5rem 1rem;
+    width: 260px; background: rgb(255, 252, 250); padding: 1.5rem 1rem;
     display: flex; flex-direction: column; border-right: 1px solid var(--neutral-gray);
     box-shadow: var(--shadow-sm);
 }

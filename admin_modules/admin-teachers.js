@@ -259,7 +259,6 @@ async function createTeacher(e) {
 
 // ==================== КАРТОЧКА ПРЕПОДАВАТЕЛЯ ====================
 async function openTeacherCard(teacherId) {
-    // Загружаем функцию из отдельного файла позже
     const { openTeacherCardModal } = await import('./admin-teacher-card.js');
     openTeacherCardModal(teacherId, supabase, loadTeachers);
 }
