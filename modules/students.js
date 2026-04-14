@@ -1,13 +1,16 @@
 // modules/students.js
 import supabase from './supabaseClient.js';
 import { getDOMElements, showError, clearError } from './ui.js';
-import { getCurrentUser } from './auth.js';
+import { getCurrentUser, getTeacherProfile } from './auth.js';
 import { fetchGroupsForSelect } from './groups.js';
+import CONFIG from './config.js';
 
 let editingStudentId = null;
 let groupsList = [];
-let studentsLoaded = false; // кэш
+let studentsLoaded = false;
+let cachedStudentsData = null;
 
+// ==================== ИНИЦИАЛИЗАЦИЯ ====================
 export async function initStudentsPage() {
   try {
     groupsList = await fetchGroupsForSelect();
@@ -15,7 +18,6 @@ export async function initStudentsPage() {
       await loadStudentsTable();
       studentsLoaded = true;
     } else {
-      // если кэш есть, просто перерисовываем таблицу
       await renderCachedTable();
     }
     renderStudentForm();
@@ -25,8 +27,6 @@ export async function initStudentsPage() {
     showError('contentArea', 'Ошибка загрузки учеников.');
   }
 }
-
-let cachedStudentsData = null;
 
 async function loadStudentsTable() {
   const tbody = document.getElementById('studentsTableBody');
@@ -51,17 +51,14 @@ async function loadStudentsTable() {
 }
 
 async function renderCachedTable() {
-  if (cachedStudentsData) {
-    renderTableFromData(cachedStudentsData);
-  } else {
-    await loadStudentsTable();
-  }
+  if (cachedStudentsData) renderTableFromData(cachedStudentsData);
+  else await loadStudentsTable();
 }
 
 function renderTableFromData(data) {
   const tbody = document.getElementById('studentsTableBody');
   if (!tbody) return;
-  if (!data || data.length === 0) {
+  if (!data?.length) {
     tbody.innerHTML = '<tr><td colspan="6">Нет учеников</td></tr>';
     return;
   }
@@ -190,6 +187,7 @@ export async function openStudentCard(studentId) {
     .eq('id', studentId)
     .single();
   if (error) return alert('Ученик не найден');
+
   const [{ data: payments }, { data: lessons }] = await Promise.all([
     supabase.from('payments').select('*').eq('student_id', studentId).order('payment_date', { ascending: false }),
     supabase.from('lessons').select('*').eq('student_id', studentId).order('lesson_date', { ascending: false })
@@ -197,6 +195,7 @@ export async function openStudentCard(studentId) {
   const paymentsData = payments || [];
   const lessonsData = lessons || [];
   const totalPaidLessons = paymentsData.reduce((sum, p) => sum + (p.lessons_paid || 0), 0);
+
   const modal = document.createElement('div');
   modal.className = 'modal student-card';
   modal.innerHTML = `
@@ -206,11 +205,12 @@ export async function openStudentCard(studentId) {
         <button class="close-modal">&times;</button>
       </div>
       <div class="tabs">
-        <button class="tab active" data-tab="info">Информация</button>
+        <button class="tab" data-tab="info">Информация</button>
         <button class="tab" data-tab="payments">Оплаты</button>
         <button class="tab" data-tab="lessons">Уроки</button>
+        <button class="tab active" data-tab="report">Отчёт</button>
       </div>
-      <div class="tab-content active" id="studentInfoTab">
+      <div class="tab-content" id="studentInfoTab">
         ${renderStudentInfo(student)}
       </div>
       <div class="tab-content" id="studentPaymentsTab">
@@ -219,19 +219,205 @@ export async function openStudentCard(studentId) {
       <div class="tab-content" id="studentLessonsTab">
         ${renderLessonsTab(lessonsData)}
       </div>
+      <div class="tab-content active" id="studentReportTab">
+        ${await renderReportTab(student, lessonsData, paymentsData)}
+      </div>
     </div>
   `;
   document.body.appendChild(modal);
+
+  // Переключение вкладок
   modal.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
       modal.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       modal.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
       tab.classList.add('active');
-      modal.querySelector(`#student${tab.dataset.tab.charAt(0).toUpperCase() + tab.dataset.tab.slice(1)}Tab`).classList.add('active');
+      const targetId = `student${tab.dataset.tab.charAt(0).toUpperCase() + tab.dataset.tab.slice(1)}Tab`;
+      modal.querySelector(`#${targetId}`).classList.add('active');
     });
   });
+
   modal.querySelector('.close-modal').addEventListener('click', () => modal.remove());
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+  // Обработчики для вкладки "Отчёт"
+  const startInput = modal.querySelector('#reportStartDate');
+  const endInput = modal.querySelector('#reportEndDate');
+  const previewDiv = modal.querySelector('#reportPreview');
+  const recommendationsTextarea = modal.querySelector('#reportRecommendations');
+
+  async function updateReport() {
+    const start = startInput.value;
+    const end = endInput.value;
+    const filteredLessons = lessonsData.filter(l =>
+      (l.status === 'completed' || l.attended === true) &&
+      l.lesson_date >= start &&
+      l.lesson_date <= end
+    );
+
+    const completedCount = filteredLessons.length;
+
+    let reportText = `📊 ОТЧЁТ ПО УЧЕНИКУ
+👤 Имя: ${student.child_name}
+
+📅 Период: ${new Date(start).toLocaleDateString('ru-RU')} – ${new Date(end).toLocaleDateString('ru-RU')}
+
+═══════════════════════════════
+
+📈 СТАТИСТИКА
+✅ Проведено уроков: ${completedCount}
+
+═══════════════════════════════
+
+📚 ПРОЙДЕННЫЕ ТЕМЫ
+`;
+
+    if (filteredLessons.length > 0) {
+      filteredLessons.forEach(l => {
+        reportText += `• ${new Date(l.lesson_date).toLocaleDateString('ru-RU')} – ${l.topic || 'без темы'}\n`;
+      });
+    } else {
+      reportText += 'Нет проведённых уроков за этот период\n';
+    }
+
+    reportText += `
+═══════════════════════════════
+
+💡 РЕКОМЕНДАЦИИ
+    ${recommendationsTextarea?.value || '(введите или сгенерируйте рекомендации)'}
+
+═══════════════════════════════
+
+📅 БЛИЖАЙШИЕ УРОКИ
+`;
+
+    const upcomingLessons = lessonsData.filter(l => l.status === 'planned' && l.lesson_date >= new Date().toISOString()).slice(0, 3);
+    if (upcomingLessons.length > 0) {
+      upcomingLessons.forEach(l => {
+        reportText += `• ${new Date(l.lesson_date).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })} – ${l.topic || 'без темы'}\n`;
+      });
+    } else {
+      reportText += 'Нет запланированных уроков\n';
+    }
+
+    reportText += `
+═══════════════════════════════
+С уважением,
+${getTeacherProfile()?.teacher_name || 'Ваш преподаватель'}
+SimpleEd CRM`;
+
+previewDiv.innerHTML = reportText
+.split('\n\n')
+.map(block => `<p>${block.replace(/\n/g, '<br>')}</p>`)
+.join('');
+  }
+
+  modal.querySelector('#generateReportBtn')?.addEventListener('click', updateReport);
+
+  // Быстрые фильтры
+  modal.querySelectorAll('.quick-period').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const period = btn.dataset.period;
+      const now = new Date();
+      let start, end;
+
+      switch (period) {
+        case 'week':
+          start = new Date(now); start.setDate(now.getDate() - 7); end = now;
+          break;
+        case 'month':
+          start = new Date(now); start.setDate(now.getDate() - 30); end = now;
+          break;
+        case '3lessons':
+        case '5lessons':
+          const count = period === '3lessons' ? 3 : 5;
+          const completedLessons = lessonsData
+            .filter(l => l.status === 'completed' || l.attended === true)
+            .sort((a, b) => new Date(b.lesson_date) - new Date(a.lesson_date))
+            .slice(0, count);
+          if (completedLessons.length > 0) {
+            start = new Date(completedLessons[completedLessons.length - 1].lesson_date);
+            end = new Date(completedLessons[0].lesson_date);
+          } else {
+            start = now; end = now;
+          }
+          break;
+      }
+      startInput.value = start.toISOString().split('T')[0];
+      endInput.value = end.toISOString().split('T')[0];
+      updateReport();
+      modal.querySelectorAll('.quick-period').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+
+  updateReport();
+
+  modal.querySelector('#copyReportBtn')?.addEventListener('click', () => {
+    navigator.clipboard.writeText(previewDiv.innerText);
+    alert('Отчёт скопирован в буфер обмена!');
+  });
+
+  modal.querySelector('#downloadReportBtn')?.addEventListener('click', () => {
+    const blob = new Blob([previewDiv.innerText], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `report_${student.child_name}_${startInput.value}_${endInput.value}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  modal.querySelector('#aiRecommendBtn')?.addEventListener('click', async () => {
+    const btn = modal.querySelector('#aiRecommendBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Генерация...';
+    try {
+      const start = startInput.value;
+      const end = endInput.value;
+      const filteredLessons = lessonsData.filter(l =>
+        (l.status === 'completed' || l.attended === true) &&
+        l.lesson_date >= start && l.lesson_date <= end
+      );
+      const stats = {
+        completed: filteredLessons.length,
+        missed: lessonsData.filter(l => l.status === 'cancelled' && l.lesson_date >= start && l.lesson_date <= end).length
+      };
+      const notes = filteredLessons.map(l => l.notes).filter(Boolean).join(' ');
+      const response = await fetch('https://yyohojhvayfcwiqrdiqf.supabase.co/functions/v1/super-function', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': CONFIG.SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({
+          student: { child_name: student.child_name, child_age: student.child_age },
+          period: { start, end },
+          stats,
+          lessons: filteredLessons.map(l => ({ topic: l.topic })),
+          notes
+        })
+      });
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
+      recommendationsTextarea.value = data.recommendations;
+    } catch (err) {
+      console.error('Ошибка генерации:', err);
+      alert('Не удалось сгенерировать рекомендации: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-robot"></i> ✨ Сгенерировать с ИИ';
+    }
+  });
+
+  modal.querySelector('#applyRecommendationsBtn')?.addEventListener('click', () => {
+    updateReport();
+    const btn = modal.querySelector('#applyRecommendationsBtn');
+    btn.innerHTML = '<i class="fas fa-check"></i> Обновлено!';
+    setTimeout(() => btn.innerHTML = '<i class="fas fa-sync-alt"></i> Обновить отчёт', 1500);
+  });
+
   modal.querySelector('#addPaymentBtn')?.addEventListener('click', () => showPaymentForm(studentId, modal));
   modal.querySelector('#editStudentFromCard')?.addEventListener('click', () => {
     modal.remove();
@@ -285,21 +471,61 @@ async function renderPaymentsTab(studentId, payments, totalPaidLessons) {
 }
 
 function renderLessonsTab(lessons) {
-  let html = `<div style="padding:1rem;"><table style="width:100%;"><thead><tr><th>Дата</th><th>Тема</th><th>Статус</th><th>Заметки</th></tr></thead><tbody>`;
+  let html = `<div style="padding:1rem;"><table style="width:100%;"><thead><tr><th>Дата</th><th>Тема</th><th>Статус</th><th>Присутствие</th><th>Заметки</th></tr></thead><tbody>`;
   if (lessons && lessons.length) {
     lessons.forEach(l => {
       html += `<tr>
         <td>${new Date(l.lesson_date).toLocaleString('ru-RU')}</td>
         <td>${l.topic || '—'}</td>
         <td>${l.status || '—'}</td>
+        <td>${l.attended ? '✅' : '❌'}</td>
         <td>${l.notes || '—'}</td>
       </tr>`;
     });
   } else {
-    html += '<tr><td colspan="4">Нет проведённых уроков</td></tr>';
+    html += '<tr><td colspan="5">Нет проведённых уроков</td></tr>';
   }
   html += `</tbody></table></div>`;
   return html;
+}
+
+async function renderReportTab(student, lessons, payments) {
+  const now = new Date();
+  const monthAgo = new Date(now);
+  monthAgo.setDate(now.getDate() - 30);
+  const startDate = monthAgo.toISOString().split('T')[0];
+  const endDate = now.toISOString().split('T')[0];
+  return `
+    <div style="padding: 1rem;">
+      <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;">
+        <button class="btn btn-sm btn-outline quick-period" data-period="week"><i class="fas fa-calendar-week"></i> Неделя</button>
+        <button class="btn btn-sm btn-outline quick-period" data-period="month"><i class="fas fa-calendar-alt"></i> Месяц</button>
+        <button class="btn btn-sm btn-outline quick-period" data-period="3lessons"><i class="fas fa-list"></i> Последние 3 урока</button>
+        <button class="btn btn-sm btn-outline quick-period" data-period="5lessons"><i class="fas fa-list"></i> Последние 5 уроков</button>
+      </div>
+      <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; align-items: center; flex-wrap: wrap;">
+        <div class="date-input-wrapper"><label>Период с:</label><input type="date" id="reportStartDate" value="${startDate}"></div>
+        <div class="date-input-wrapper"><label>по:</label><input type="date" id="reportEndDate" value="${endDate}"></div>
+        <button class="btn btn-primary btn-sm" id="generateReportBtn"><i class="fas fa-sync-alt"></i> Обновить</button>
+      </div>
+      <details style="margin-bottom: 1.5rem;">
+        <summary style="cursor: pointer; font-weight: 600; color: var(--text-secondary);"><i class="fas fa-chevron-right"></i> Предпросмотр отчёта (развернуть)</summary>
+        <div id="reportPreview" style="background: var(--neutral-light); padding: 1rem; border-radius: 8px; font-family: 'Courier New', monospace; white-space: pre-wrap; line-height: 1.4; max-height: 300px; overflow-y: auto; margin-top: 0.75rem; font-size: 0.85rem; border: 1px solid var(--neutral-gray);">Выберите период и нажмите «Обновить»</div>
+      </details>
+      <div style="margin-bottom: 1.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <button class="btn btn-success btn-sm" id="copyReportBtn"><i class="fas fa-copy"></i> Копировать</button>
+        <button class="btn btn-secondary btn-sm" id="downloadReportBtn"><i class="fas fa-download"></i> Скачать TXT</button>
+      </div>
+      <div style="margin-top: 1rem;">
+        <label style="font-weight: 600; margin-bottom: 0.5rem; display: block;"><i class="fas fa-star" style="color: var(--primary-warm);"></i> Рекомендации (можно редактировать):</label>
+        <textarea id="reportRecommendations" rows="8" style="width: 100%; padding: 1rem; border-radius: 8px; border: 1px solid var(--neutral-gray); font-size: 0.95rem; line-height: 1.5; resize: vertical; min-height: 200px;" placeholder="Напишите рекомендации или сгенерируйте с помощью ИИ"></textarea>
+        <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem;">
+          <button class="btn btn-primary btn-sm" id="aiRecommendBtn"><i class="fas fa-robot"></i> ✨ Сгенерировать с ИИ</button>
+          <button class="btn btn-outline btn-sm" id="applyRecommendationsBtn"><i class="fas fa-sync-alt"></i> Обновить отчёт</button>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 async function showPaymentForm(studentId, parentModal) {

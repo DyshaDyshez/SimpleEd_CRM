@@ -34,6 +34,12 @@
     <a href="#" data-page="stats" class="nav-link">
       <i class="fas fa-chart-pie"></i>
       <span>Статистика</span>
+
+      <a href="#" data-page="lessons" class="nav-link">
+        <i class="fas fa-book-open"></i>
+        <span>Все уроки</span>
+      </a>
+
       <a href="#" data-page="notes" class="nav-link"><i class="fas fa-sticky-note"></i><span>Заметки</span></a>
     </nav>
     <div class="sidebar-footer">
@@ -64,36 +70,47 @@
 
 <!-- ШАБЛОНЫ -->
 <template id="dashboardTemplate">
-    <div class="dashboard-grid">
-      <!-- Статистика -->
-      <div class="card stat-card">
-        <h3><i class="fas fa-chart-bar"></i> Статистика</h3>
-        <div class="stat-value"><span id="totalLessonsCount">0</span> <span>уроков</span></div>
-        <div class="stat-money"><span id="totalEarnings">0</span> ₽</div>
-      </div>
-  
-      <!-- Ближайшие уроки (3-5) -->
-      <div class="card">
+  <div class="dashboard-grid">
+    <!-- Статистика -->
+    <div class="card stat-card">
+      <h3><i class="fas fa-chart-bar"></i> Статистика</h3>
+      <div class="stat-value"><span id="totalLessonsCount">0</span> <span>уроков</span></div>
+      <div class="stat-money"><span id="totalEarnings">0</span> ₽</div>
+    </div>
+
+    <!-- Ближайшие уроки -->
+    <div class="card upcoming-card">
+      <div class="card-header">
         <h3><i class="fas fa-clock"></i> Ближайшие уроки</h3>
-        <div class="lesson-list" id="upcomingLessonsList">
-          <p class="text-muted">Загрузка...</p>
-        </div>
+        <button class="btn btn-sm btn-primary" id="quickAssignLessonBtn">
+          <i class="fas fa-plus"></i> Назначить
+        </button>
       </div>
-  
-      <!-- Проведённые уроки (последние 5) -->
-      <div class="card">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <h3><i class="fas fa-check-circle"></i> Проведённые уроки</h3>
-          <button class="btn btn-sm btn-primary" id="addCompletedLessonBtn">
-            <i class="fas fa-plus"></i> Назначить урок
-          </button>
-        </div>
-        <div class="lesson-list" id="completedLessonsList">
-          <p class="text-muted">Нет проведённых уроков</p>
-        </div>
+      <div class="lesson-list" id="upcomingLessonsList">
+        <p class="text-muted">Загрузка...</p>
       </div>
     </div>
-  </template>
+
+    <!-- Проведённые уроки -->
+    <div class="card completed-card">
+      <div class="card-header">
+        <h3><i class="fas fa-check-circle"></i> Проведённые уроки</h3>
+        <button class="btn btn-sm btn-success" id="addCompletedLessonBtn">
+          <i class="fas fa-plus"></i> Добавить
+        </button>
+      </div>
+      <div class="lesson-list" id="completedLessonsList">
+        <p class="text-muted">Нет проведённых уроков</p>
+      </div>
+    </div>
+  </div>
+</template>
+
+
+
+
+
+
 
 <template id="studentsTemplate">
   <div class="form-card">
@@ -314,6 +331,60 @@
 </template>
 
 
+<template id="lessonsTemplate">
+  <div class="form-card">
+    <div class="card-header">
+      <h2><i class="fas fa-list"></i> Все уроки</h2>
+      <button class="btn btn-primary" id="addLessonFromJournalBtn">
+        <i class="fas fa-plus"></i> Добавить урок
+      </button>
+    </div>
+
+    <!-- Фильтры -->
+    <div class="filters" style="margin-bottom: 1.5rem;">
+      <input type="date" id="lessonsFilterDateFrom" placeholder="С даты">
+      <input type="date" id="lessonsFilterDateTo" placeholder="По дату">
+      <select id="lessonsFilterStudent">
+        <option value="">Все ученики</option>
+      </select>
+      <select id="lessonsFilterGroup">
+        <option value="">Все группы</option>
+      </select>
+      <select id="lessonsFilterStatus">
+        <option value="">Все статусы</option>
+        <option value="planned">Запланирован</option>
+        <option value="completed">Проведён</option>
+        <option value="cancelled">Отменён</option>
+      </select>
+      <button class="btn btn-sm btn-primary" id="applyLessonsFiltersBtn">
+        <i class="fas fa-filter"></i> Применить
+      </button>
+      <button class="btn btn-sm btn-secondary" id="resetLessonsFiltersBtn">
+        <i class="fas fa-times"></i> Сбросить
+      </button>
+    </div>
+
+    <!-- Таблица -->
+    <div class="table-responsive">
+      <table id="allLessonsTable">
+        <thead>
+          <tr>
+            <th>Дата</th>
+            <th>Ученик/Группа</th>
+            <th>Тема</th>
+            <th>Статус</th>
+            <th>Присутствие</th>
+            <th>Заметки</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="allLessonsTableBody">
+          <tr><td colspan="7">Загрузка...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</template>
 
 <!-- Шаблон страницы Заметки -->
   <template id="notesTemplate">

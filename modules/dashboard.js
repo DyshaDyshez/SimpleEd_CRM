@@ -43,9 +43,15 @@ async function loadAllDataFromSupabase() {
       totalEarnings: paymentsRes.data ? paymentsRes.data.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0) : 0
     };
 
-    // Ближайшие уроки (до 5)
-    const now = new Date().toISOString();
-    const { data: upcoming } = await supabase
+    // === БЛИЖАЙШИЕ УРОКИ (неделя или 5 ближайших) ===
+    const now = new Date();
+    const nextWeek = new Date(now);
+    nextWeek.setDate(now.getDate() + 7);
+    
+    const nowISO = now.toISOString();
+    const nextWeekISO = nextWeek.toISOString();
+
+    let { data: upcoming } = await supabase
       .from('lessons')
       .select(`
         id, lesson_date, topic, group_id, student_id,
@@ -54,13 +60,34 @@ async function loadAllDataFromSupabase() {
       `)
       .eq('teacher_id', getCurrentUser().id)
       .eq('status', 'planned')
-      .gte('lesson_date', now)
-      .order('lesson_date', { ascending: true })
-      .limit(5);
+      .gte('lesson_date', nowISO)
+      .lte('lesson_date', nextWeekISO)
+      .order('lesson_date', { ascending: true });
+
+    // Если на неделе пусто — берём 5 ближайших
+    if (!upcoming || upcoming.length === 0) {
+      const res = await supabase
+        .from('lessons')
+        .select(`
+          id, lesson_date, topic, group_id, student_id,
+          student_groups ( group_name ),
+          students ( child_name )
+        `)
+        .eq('teacher_id', getCurrentUser().id)
+        .eq('status', 'planned')
+        .gte('lesson_date', nowISO)
+        .order('lesson_date', { ascending: true })
+        .limit(5);
+      upcoming = res.data;
+    }
     cachedUpcoming = upcoming || [];
 
-    // Проведённые уроки (последние 5)
-    const { data: completed } = await supabase
+    // === ПРОВЕДЁННЫЕ УРОКИ (7 дней или 5 последних) ===
+    const weekAgo = new Date(now);
+    weekAgo.setDate(now.getDate() - 7);
+    const weekAgoISO = weekAgo.toISOString();
+
+    let { data: completed } = await supabase
       .from('lessons')
       .select(`
         id, lesson_date, topic, notes, group_id, student_id,
@@ -69,14 +96,29 @@ async function loadAllDataFromSupabase() {
       `)
       .eq('teacher_id', getCurrentUser().id)
       .eq('status', 'completed')
-      .order('lesson_date', { ascending: false })
-      .limit(5);
+      .gte('lesson_date', weekAgoISO)
+      .lte('lesson_date', nowISO)
+      .order('lesson_date', { ascending: false });
+
+    // Если за неделю пусто — берём 5 последних
+    if (!completed || completed.length === 0) {
+      const res = await supabase
+        .from('lessons')
+        .select(`
+          id, lesson_date, topic, notes, group_id, student_id,
+          student_groups ( group_name ),
+          students ( child_name )
+        `)
+        .eq('teacher_id', getCurrentUser().id)
+        .eq('status', 'completed')
+        .order('lesson_date', { ascending: false })
+        .limit(5);
+      completed = res.data;
+    }
     cachedCompleted = completed || [];
   } catch (e) {
     console.error('Ошибка загрузки данных дашборда:', e);
   }
-
-  
 }
 
 // ==================== РЕНДЕРИНГ ====================
@@ -100,7 +142,7 @@ function renderUpcomingLessons() {
       day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'
     });
     return `
-      <div class="lesson-item">
+      <div class="lesson-item" data-lesson-id="${l.id}">
         <span class="time">${date}</span>
         <div class="info">
           <strong>${name}</strong>
@@ -109,6 +151,11 @@ function renderUpcomingLessons() {
       </div>
     `;
   }).join('');
+
+  // Добавляем обработчики клика
+  container.querySelectorAll('.lesson-item').forEach(el => {
+    el.addEventListener('click', () => openLessonModal(el.dataset.lessonId));
+  });
 }
 
 function renderCompletedLessons() {
@@ -125,7 +172,7 @@ function renderCompletedLessons() {
     });
     const notes = l.notes ? `<small>${l.notes.substring(0, 50)}${l.notes.length > 50 ? '…' : ''}</small>` : '';
     return `
-      <div class="lesson-item">
+      <div class="lesson-item" data-lesson-id="${l.id}">
         <span class="time">${date}</span>
         <div class="info">
           <strong>${name}</strong>
@@ -135,6 +182,11 @@ function renderCompletedLessons() {
       </div>
     `;
   }).join('');
+
+  // Добавляем обработчики клика
+  container.querySelectorAll('.lesson-item').forEach(el => {
+    el.addEventListener('click', () => openLessonModal(el.dataset.lessonId));
+  });
 }
 
 // ==================== СБРОС КЭША ====================
@@ -341,6 +393,181 @@ async function showAddCompletedLessonModal() {
   });
 }
 
+// ==================== МОДАЛКА БЫСТРОГО НАЗНАЧЕНИЯ УРОКА ====================
+async function showQuickAssignLessonModal() {
+  const { openScheduleLessonModal } = await import('./groups.js');
+  // Поскольку у нас нет контекста конкретной группы, показываем универсальную форму
+  // Можно открыть модалку из расписания или создать упрощённую
+  const { initSchedulePage } = await import('./schedule.js');
+  // Переходим на страницу расписания и открываем форму
+  document.querySelector('[data-page="schedule"]')?.click();
+  setTimeout(() => {
+    document.getElementById('assignLessonBtn')?.click();
+  }, 300);
+}
+
 function bindDashboardEvents() {
   document.getElementById('addCompletedLessonBtn')?.addEventListener('click', showAddCompletedLessonModal);
+  document.getElementById('quickAssignLessonBtn')?.addEventListener('click', showQuickAssignLessonModal);
+}
+
+
+// ==================== МОДАЛКА ПРОСМОТРА/РЕДАКТИРОВАНИЯ УРОКА ====================
+export async function openLessonModal(lessonId) {
+  // Находим урок в кэше
+  let lesson = cachedUpcoming?.find(l => l.id === lessonId) || 
+               cachedCompleted?.find(l => l.id === lessonId);
+  
+  if (!lesson) {
+    // Если нет в кэше, пробуем загрузить
+    const { data, error } = await supabase
+      .from('lessons')
+      .select(`
+        *,
+        student_groups ( group_name ),
+        students ( child_name )
+      `)
+      .eq('id', lessonId)
+      .single();
+    if (error) {
+      alert('Урок не найден');
+      return;
+    }
+    lesson = data;
+  }
+
+  const modal = document.createElement('div');
+  modal.className = 'modal lesson-edit-modal';
+  modal.innerHTML = `
+    <div class="modal-card" style="max-width: 500px;">
+      <div class="modal-header">
+        <h3>Редактирование урока</h3>
+        <button class="close-modal">&times;</button>
+      </div>
+      <form id="lessonEditForm">
+        <div class="form-group">
+          <label>Ученик/Группа</label>
+          <input type="text" value="${lesson.student_groups?.group_name || lesson.students?.child_name || '—'}" disabled>
+        </div>
+        <div class="form-group">
+          <label>Дата и время</label>
+          <input type="datetime-local" id="editLessonDate" value="${new Date(lesson.lesson_date).toISOString().slice(0, 16)}" required>
+        </div>
+        <div class="form-group">
+          <label>Тема</label>
+          <input type="text" id="editLessonTopic" value="${lesson.topic || ''}">
+        </div>
+        <div class="form-group">
+          <label>Статус</label>
+          <select id="editLessonStatus">
+            <option value="planned" ${lesson.status === 'planned' ? 'selected' : ''}>Запланирован</option>
+            <option value="completed" ${lesson.status === 'completed' ? 'selected' : ''}>Проведён</option>
+            <option value="cancelled" ${lesson.status === 'cancelled' ? 'selected' : ''}>Отменён</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="editLessonAttended" ${lesson.attended ? 'checked' : ''}> Ученик присутствовал
+          </label>
+        </div>
+        <div class="form-group">
+          <label>Заметки</label>
+          <textarea id="editLessonNotes" rows="3">${lesson.notes || ''}</textarea>
+        </div>
+        <div class="modal-actions" style="justify-content: space-between;">
+          <button type="button" class="btn btn-danger" id="deleteLessonBtn">
+            <i class="fas fa-trash"></i> Удалить
+          </button>
+          <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn-success">Сохранить</button>
+            <button type="button" class="btn btn-secondary close-modal">Отмена</button>
+          </div>
+        </div>
+        <div id="lessonEditError" class="error-message"></div>
+      </form>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  modal.querySelectorAll('.close-modal').forEach(btn => {
+    btn.addEventListener('click', () => modal.remove());
+  });
+
+  // Обработчик удаления
+  modal.querySelector('#deleteLessonBtn').addEventListener('click', async () => {
+    if (!confirm('Удалить урок безвозвратно?')) return;
+    
+    const { error } = await supabase
+      .from('lessons')
+      .delete()
+      .eq('id', lessonId);
+
+    if (error) {
+      alert(`Ошибка удаления: ${error.message}`);
+      return;
+    }
+
+    modal.remove();
+    // Сбрасываем кэш и перезагружаем дашборд
+    resetDashboardCache();
+    await loadAllDataFromSupabase();
+    renderStats();
+    renderUpcomingLessons();
+    renderCompletedLessons();
+  });
+
+  modal.querySelector('#lessonEditForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errorDiv = modal.querySelector('#lessonEditError');
+    errorDiv.textContent = '';
+  
+    const lessonDate = modal.querySelector('#editLessonDate').value;
+    const topic = modal.querySelector('#editLessonTopic').value.trim() || null;
+    const status = modal.querySelector('#editLessonStatus').value;
+    const attended = modal.querySelector('#editLessonAttended').checked;
+    const notes = modal.querySelector('#editLessonNotes').value.trim() || null;
+  
+    if (!lessonDate) {
+      errorDiv.textContent = 'Выберите дату и время';
+      return;
+    }
+  
+    const localDate = new Date(lessonDate);
+    const utcDate = localDate.toISOString();
+  
+    const { error } = await supabase
+      .from('lessons')
+      .update({
+        lesson_date: utcDate,
+        topic,
+        status,
+        attended,
+        notes
+      })
+      .eq('id', lessonId);
+  
+    if (error) {
+      errorDiv.textContent = `Ошибка сохранения: ${error.message}`;
+      return;
+    }
+  
+    modal.remove();
+    
+    // Сбрасываем кэш дашборда
+    resetDashboardCache();
+    await loadAllDataFromSupabase();
+    renderStats();
+    renderUpcomingLessons();
+    renderCompletedLessons();
+    
+    // Уведомляем страницу "Все уроки" об обновлении
+    if (window.updateAllLessonsTable) {
+      await window.updateAllLessonsTable();
+    }
+  });
+
+
+
+
+  
 }

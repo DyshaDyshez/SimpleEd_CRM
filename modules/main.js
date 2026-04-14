@@ -11,6 +11,7 @@ import { initNotesPage } from './notes.js';
 import { openProfileModal } from './profile.js';
 import { initNotifications } from './notifications.js';
 import { initStatsPage } from './stats.js';
+import { initLessonsPage } from './lessons.js';
 
 let currentPage = 'dashboard';
 
@@ -48,7 +49,9 @@ if (userProfileEl) {
       await initNotesPage();
     } else if (page === 'stats') {
       await initStatsPage();
-  }
+    } else if (page === 'lessons') {
+      await initLessonsPage();
+    }
   });
 
   // Первичная загрузка главной

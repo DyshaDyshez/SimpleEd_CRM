@@ -755,3 +755,340 @@ input[type="date"]:not(:focus):invalid::-webkit-datetime-edit {
     }
 }
 
+/* ===== СТИЛИ ДЛЯ ВКЛАДКИ "ОТЧЁТ" ===== */
+
+/* Кнопки-контуры (быстрые периоды) */
+.btn-outline {
+    background: transparent;
+    border: 1px solid var(--neutral-gray);
+    color: var(--text-primary);
+    transition: var(--transition);
+}
+.btn-outline:hover {
+    background: var(--neutral-light);
+    border-color: var(--primary-warm);
+}
+.btn-outline.active {
+    background: var(--primary-soft);
+    border-color: var(--primary-warm);
+    color: var(--primary-deep);
+    font-weight: 500;
+}
+
+/* Обёртка для полей дат */
+.date-input-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+.date-input-wrapper label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+.date-input-wrapper input {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--neutral-gray);
+    border-radius: 8px;
+    background: white;
+    font-size: 0.9rem;
+    transition: var(--transition);
+}
+.date-input-wrapper input:focus {
+    outline: none;
+    border-color: var(--primary-warm);
+    box-shadow: 0 0 0 3px rgba(212, 163, 115, 0.15);
+}
+
+/* Сворачиваемый блок предпросмотра */
+details {
+    border: 1px solid var(--neutral-gray);
+    border-radius: 8px;
+    overflow: hidden;
+}
+details summary {
+    padding: 0.75rem 1rem;
+    background: var(--neutral-light);
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--text-secondary);
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: background 0.2s;
+}
+details summary::-webkit-details-marker {
+    display: none;
+}
+details summary i {
+    transition: transform 0.2s;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+details[open] summary i {
+    transform: rotate(90deg);
+}
+details summary:hover {
+    background: var(--primary-soft);
+}
+details .report-preview-content {
+    padding: 1rem;
+    background: var(--neutral-light);
+    border-top: 1px solid var(--neutral-gray);
+}
+
+/* Предпросмотр отчёта */
+#reportPreview {
+    font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
+    color: var(--text-primary);
+    background: white;
+    line-height: 1.5;
+}
+#reportPreview br + br {
+    display: none;
+}
+
+/* Поле рекомендаций */
+#reportRecommendations {
+    font-family: inherit;
+    background: white;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+#reportRecommendations:focus {
+    outline: none;
+    border-color: var(--primary-warm);
+    box-shadow: 0 0 0 3px rgba(212, 163, 115, 0.15);
+}
+
+/* Кнопка "Обновить отчёт" */
+#applyRecommendationsBtn {
+    min-width: 140px;
+}
+
+/* Адаптация фильтров на мобильных */
+@media (max-width: 600px) {
+    .date-input-wrapper {
+        width: 100%;
+    }
+    .quick-period {
+        flex: 1;
+    }
+}
+
+#reportPreview {
+    white-space: pre-line;
+    line-height: 1.6;
+}
+#reportPreview br {
+    display: block;
+    content: "";
+    margin: 0.5em 0;
+}
+
+/* ===== КАРТОЧНАЯ СТИЛИЗАЦИЯ ДАШБОРДА ===== */
+
+/* Контейнеры уроков */
+.lesson-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+/* Карточка урока */
+.lesson-item {
+    background: var(--card-default);
+    border-radius: var(--border-radius-md);
+    padding: 1rem;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--neutral-gray);
+    transition: var(--transition);
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.lesson-item:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--primary-warm);
+}
+
+/* Время урока */
+.lesson-item .time {
+    font-weight: 700;
+    color: var(--primary-warm);
+    min-width: 100px;
+    font-size: 0.95rem;
+    background: var(--primary-soft);
+    padding: 0.4rem 0.75rem;
+    border-radius: 20px;
+    text-align: center;
+}
+
+/* Информация об уроке */
+.lesson-item .info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.lesson-item .info strong {
+    font-size: 1.05rem;
+    color: var(--text-primary);
+}
+
+.lesson-item .info span {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.lesson-item .info small {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-style: italic;
+    margin-top: 0.25rem;
+    padding-top: 0.25rem;
+    border-top: 1px dashed var(--neutral-gray);
+}
+
+/* Адаптивность */
+@media (max-width: 600px) {
+    .lesson-item {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    .lesson-item .time {
+        align-self: flex-start;
+    }
+}
+
+/* Пустые состояния */
+.lesson-list .text-muted {
+    text-align: center;
+    padding: 2rem;
+    background: var(--neutral-light);
+    border-radius: var(--border-radius-md);
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* Карточки статистики на дашборде */
+.stat-card {
+    transition: var(--transition);
+}
+
+.stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+}
+
+.stat-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--neutral-deep);
+    line-height: 1.2;
+}
+
+.stat-money {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--primary-deep);
+    margin-top: 0.5rem;
+}
+
+/* ===== КАРТОЧКИ СТАТИСТИКИ НА ДАШБОРДЕ ===== */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.dashboard-grid .card {
+    background: var(--card-default);
+    border-radius: var(--border-radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--neutral-gray);
+    transition: var(--transition);
+}
+
+.dashboard-grid .card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--primary-warm);
+}
+
+.dashboard-grid .card h3 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+    color: var(--text-primary);
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.dashboard-grid .card h3 i {
+    color: var(--primary-warm);
+    font-size: 1.25rem;
+}
+
+/* Карточка статистики (особая) */
+.stat-card {
+    background: linear-gradient(135deg, var(--card-stat) 0%, #FFF8F0 100%);
+    border-left: 4px solid var(--primary-warm);
+}
+
+.stat-card h3 {
+    color: var(--neutral-deep);
+}
+
+.stat-card .stat-value {
+    font-size: 2.8rem;
+    font-weight: 800;
+    color: var(--primary-deep);
+    line-height: 1.1;
+    margin-bottom: 0.25rem;
+}
+
+.stat-card .stat-value span {
+    font-size: 1rem;
+    font-weight: 400;
+    color: var(--text-secondary);
+}
+
+.stat-card .stat-money {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--neutral-deep);
+}
+
+/* Карточка заметки */
+.note-card {
+    background: linear-gradient(135deg, var(--card-note) 0%, #FFFDF5 100%);
+    border-left: 4px solid var(--primary-medium);
+}
+
+.note-card p {
+    color: var(--text-secondary);
+    font-style: italic;
+    line-height: 1.6;
+}
+
+/* Карточка с уроками */
+.dashboard-grid .card:last-child {
+    border-left: 4px solid var(--primary-warm);
+}
+
+.lesson-item {
+    cursor: pointer;
+}
+.lesson-item:hover {
+    background: var(--primary-soft);
+}
+
+.badge.planned { background: var(--primary-soft); color: var(--primary-deep); }
+.badge.completed { background: var(--card-success); color: #2C4C3B; }
+.badge.cancelled { background: var(--card-warning); color: #8B4E2C; }
