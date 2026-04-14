@@ -1094,3 +1094,84 @@ details .report-preview-content {
 .badge.planned { background: var(--primary-soft); color: var(--primary-deep); }
 .badge.completed { background: var(--card-success); color: #2C4C3B; }
 .badge.cancelled { background: var(--card-warning); color: #8B4E2C; }
+
+/* ===== СТИЛИ ДЛЯ SHEPHERD.JS ===== */
+.shepherd-theme-custom {
+    max-width: 400px !important;
+}
+
+.shepherd-theme-custom .shepherd-header {
+    background: var(--primary-warm) !important;
+    color: white !important;
+    border-radius: 12px 12px 0 0 !important;
+    padding: 1rem 1.25rem !important;
+}
+
+.shepherd-theme-custom .shepherd-title {
+    color: white !important;
+    font-weight: 600 !important;
+}
+
+.shepherd-theme-custom .shepherd-cancel-icon {
+    color: white !important;
+    opacity: 0.8;
+}
+
+.shepherd-theme-custom .shepherd-cancel-icon:hover {
+    opacity: 1;
+    background: rgba(255,255,255,0.1) !important;
+}
+
+.shepherd-theme-custom .shepherd-text {
+    padding: 1.25rem !important;
+    color: var(--text-primary) !important;
+    line-height: 1.6 !important;
+}
+
+.shepherd-theme-custom .shepherd-text ul {
+    margin: 0.5rem 0 0.5rem 1.25rem !important;
+}
+
+.shepherd-theme-custom .shepherd-text li {
+    margin-bottom: 0.25rem !important;
+}
+
+.shepherd-theme-custom .shepherd-footer {
+    padding: 0 1.25rem 1.25rem !important;
+}
+
+.shepherd-theme-custom .shepherd-button {
+    background: var(--primary-warm) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 0.5rem 1.25rem !important;
+    font-weight: 500 !important;
+    transition: var(--transition) !important;
+}
+
+.shepherd-theme-custom .shepherd-button:hover {
+    background: var(--primary-deep) !important;
+}
+
+.shepherd-theme-custom .shepherd-button.shepherd-button-secondary {
+    background: var(--neutral-gray) !important;
+    color: var(--text-primary) !important;
+}
+
+.shepherd-theme-custom .shepherd-button.shepherd-button-secondary:hover {
+    background: var(--neutral-dark) !important;
+    color: white !important;
+}
+
+/* Подсветка активного элемента */
+.shepherd-enabled {
+    filter: none !important;
+}
+
+.shepherd-target {
+    position: relative;
+    z-index: 9999 !important;
+    box-shadow: 0 0 0 4px rgba(212, 163, 115, 0.3) !important;
+    border-radius: 8px !important;
+}

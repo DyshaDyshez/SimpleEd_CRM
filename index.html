@@ -14,6 +14,9 @@
 
   <!-- Chart.js для графиков статистики -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- Shepherd.js для обучалки -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@11.2.0/dist/css/shepherd.css"/>
+
 
 </head>
 <body>
@@ -30,6 +33,7 @@
       <a href="#" data-page="groups" class="nav-link"><i class="fas fa-th-large"></i><span>Группы</span></a>
       <a href="#" data-page="schedule" class="nav-link"><i class="fas fa-calendar-alt"></i><span>Расписание</span></a>
       <a href="#" data-page="finance" class="nav-link"><i class="fas fa-coins"></i><span>Финансы</span></a>
+      
           <!-- НОВАЯ ВКЛАДКА -->
     <a href="#" data-page="stats" class="nav-link">
       <i class="fas fa-chart-pie"></i>
@@ -41,12 +45,27 @@
       </a>
 
       <a href="#" data-page="notes" class="nav-link"><i class="fas fa-sticky-note"></i><span>Заметки</span></a>
+
+      <a href="#" id="helpBtn" class="nav-link">
+        <i class="fas fa-question-circle"></i>
+        <span>Краткое обучение</span>
+    </a>
+
     </nav>
     <div class="sidebar-footer">
       <button id="supportBtn" class="btn-sm"><i class="fas fa-headset"></i><span>Поддержка</span></button>
       <button id="logoutBtn" class="btn-sm logout-btn"><i class="fas fa-sign-out-alt"></i><span>Выйти</span></button>
     </div>
+    
   </aside>
+
+  <!-- Кнопка чата с поддержкой -->
+<div id="supportChatBtn" style="position: fixed; bottom: 2rem; right: 2rem; z-index: 100;">
+  <button class="btn btn-primary" style="border-radius: 50px; padding: 0.75rem 1.5rem; box-shadow: var(--shadow-md);">
+    <i class="fas fa-comment-dots"></i> Чат с поддержкой
+    <span id="unreadMessagesBadge" class="unread-badge hidden" style="position: relative; top: 0; right: 0; margin-left: 0.5rem;">0</span>
+  </button>
+</div>
 
   <main class="main-content">
     <header>
@@ -530,5 +549,9 @@
 <div id="globalLoader" class="global-loader hidden">
   <div class="loader-spinner"></div>
 </div>
+
+<!-- Shepherd.js -->
+<script src="https://cdn.jsdelivr.net/npm/shepherd.js@11.2.0/dist/js/shepherd.min.js"></script>
+
 </body>
 </html>

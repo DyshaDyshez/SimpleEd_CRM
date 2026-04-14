@@ -27,6 +27,11 @@
     const tabs = document.querySelectorAll('[data-tab]');
     const tabContents = document.querySelectorAll('.tab-content');
 
+
+    let selectedChatId = null;
+    let adminId = null;
+
+
     let showArchived = false;
 
     // Отображение имени админа
@@ -1195,6 +1200,17 @@ paymentsTabObserver.observe(document.getElementById('paymentsTab'), {
     attributes: true, 
     attributeFilter: ['class'] 
 });
+
+// Загружаем чаты при открытии вкладки
+const chatsTabObserver = new MutationObserver(() => {
+    if (document.getElementById('chatsTab')?.classList.contains('active')) {
+        initChatsTab();
+    }
+});
+chatsTabObserver.observe(document.getElementById('chatsTab'), { 
+    attributes: true, 
+    attributeFilter: ['class'] 
+});
     
 async function archiveTeacher(teacherId) {
     if (!confirm('Переместить преподавателя в архив? Его данные сохранятся, но он не будет отображаться в активных списках.')) return;
@@ -1253,7 +1269,326 @@ document.getElementById('showActiveBtn')?.addEventListener('click', () => {
     loadTeachers();
 });
 
+// ========== ЧАТЫ С ПРЕПОДАВАТЕЛЯМИ ==========
+async function initChatsTab() {
+    const adminEmail = JSON.parse(localStorage.getItem('adminAuth'))?.email;
+    
+    // Получаем UUID админа из таблицы platform_admins
+    const { data: adminData } = await supabase
+        .from('platform_admins')
+        .select('id')
+        .eq('email', adminEmail)
+        .single();
+    
+    adminId = adminData?.id;
+    console.log('Admin UUID:', adminId);
+    
+    await loadChatsList();
+    
+    // Realtime подписка на новые сообщения
+supabase
+.channel('admin-chats')
+.on(
+  'postgres_changes',
+  {
+    event: 'INSERT',
+    schema: 'public',
+    table: 'chat_messages'
+  },
+  (payload) => {
+    console.log('Админ: новое сообщение', payload.new);
+    const msg = payload.new;
+    
+    // Если сейчас открыт чат, куда пришло сообщение — обновляем его
+    if (selectedChatId && msg.chat_id === selectedChatId) {
+      // Добавляем сообщение в контейнер
+      const container = document.getElementById('adminChatMessages');
+      const isAdmin = msg.sender_type === 'admin';
+      
+      const msgDiv = document.createElement('div');
+      msgDiv.style.cssText = `
+        display: flex;
+        flex-direction: column;
+        align-items: ${isAdmin ? 'flex-end' : 'flex-start'};
+      `;
+      msgDiv.innerHTML = `
+        <div style="
+          background: ${isAdmin ? 'var(--primary-warm)' : 'var(--neutral-light)'};
+          color: ${isAdmin ? 'white' : 'var(--text-primary)'};
+          padding: 0.75rem 1rem;
+          border-radius: 12px;
+          border-bottom-right-radius: ${isAdmin ? '4px' : '12px'};
+          border-bottom-left-radius: ${isAdmin ? '12px' : '4px'};
+          max-width: 70%;
+          word-wrap: break-word;
+        ">
+          ${escapeHtml(msg.message)}
+        </div>
+        <small style="color: var(--text-muted); margin-top: 0.25rem; font-size: 0.7rem;">
+          ${new Date(msg.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+        </small>
+      `;
+      container.appendChild(msgDiv);
+      container.scrollTop = container.scrollHeight;
+      
+      // Отмечаем прочитанным, если от учителя
+      if (msg.sender_type === 'teacher') {
+        supabase.from('chat_messages').update({ is_read: true }).eq('id', msg.id);
+      }
+    }
+    
+    // В любом случае обновляем список чатов (может измениться последнее сообщение)
+    loadChatsList();
+  }
+)
+.subscribe((status) => {
+  console.log('Админ Realtime статус:', status);
+});
+}
 
+async function loadChatsList() {
+    const container = document.getElementById('chatsListContainer');
+    if (!container) return;
+
+    const { data: chats } = await supabase
+        .from('chats')
+        .select(`
+            *,
+            teacher_profiles(teacher_name, email),
+            chat_messages(message, created_at, sender_type, is_read)
+        `)
+        .order('updated_at', { ascending: false });
+
+    if (!chats?.length) {
+        container.innerHTML = '<p style="padding: 1rem; color: var(--text-muted);">Нет чатов</p>';
+        return;
+    }
+
+    container.innerHTML = chats.map(chat => {
+        const lastMsg = chat.chat_messages?.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+        const hasUnread = chat.chat_messages?.some(m => m.sender_type === 'teacher' && !m.is_read);
+        
+        return `
+            <div class="chat-item ${hasUnread ? 'unread' : ''}" data-chat-id="${chat.id}" style="
+                padding: 1rem;
+                border-bottom: 1px solid var(--neutral-gray);
+                cursor: pointer;
+                transition: background 0.2s;
+                ${hasUnread ? 'background: var(--primary-soft); font-weight: 500;' : ''}
+            ">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <strong>${chat.teacher_profiles?.teacher_name || 'Без имени'}</strong>
+                    ${chat.status === 'open' ? '<span style="color: #2C4C3B;">🟢</span>' : '<span style="color: #8B7E6C;">🔴</span>'}
+                </div>
+                <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 0.25rem 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    ${lastMsg?.message || 'Нет сообщений'}
+                </p>
+                <small style="color: var(--text-muted);">${chat.teacher_profiles?.email || ''}</small>
+            </div>
+        `;
+    }).join('');
+
+    container.querySelectorAll('.chat-item').forEach(el => {
+        el.addEventListener('click', () => selectChat(el.dataset.chatId));
+    });
+}
+
+async function selectChat(chatId) {
+    selectedChatId = chatId;
+    
+    // Подсветка активного чата
+    document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active'));
+    document.querySelector(`[data-chat-id="${chatId}"]`)?.classList.add('active');
+    
+    document.getElementById('adminChatInput').style.display = 'block';
+    await loadChatMessages(chatId);
+
+    
+}
+
+async function loadChatMessages(chatId) {
+    const { data: chat } = await supabase
+        .from('chats')
+        .select('*, teacher_profiles(teacher_name)')
+        .eq('id', chatId)
+        .single();
+
+    const { data: messages } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('chat_id', chatId)
+        .order('created_at', { ascending: true });
+
+    // Заголовок
+    document.getElementById('adminChatHeader').innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h3 style="margin: 0;">${chat.teacher_profiles?.teacher_name || 'Преподаватель'}</h3>
+                <p style="margin: 0.25rem 0 0; color: var(--text-secondary); font-size: 0.9rem;">${chat.teacher_profiles?.email || ''}</p>
+            </div>
+            <button class="btn btn-sm ${chat.status === 'open' ? 'btn-warning' : 'btn-success'}" id="toggleChatStatusBtn">
+                ${chat.status === 'open' ? 'Закрыть чат' : 'Открыть чат'}
+            </button>
+            </button>
+                <!-- 👇 КНОПКА УДАЛЕНИЯ ЧАТА -->
+                <button class="btn btn-sm btn-danger" id="deleteChatBtn">
+                    <i class="fas fa-trash"></i> Удалить
+                </button>
+        </div>
+    `;
+
+    // Сообщения
+    const container = document.getElementById('adminChatMessages');
+    if (!messages?.length) {
+        container.innerHTML = '<p style="text-align: center; color: var(--text-muted); margin-top: 2rem;">Нет сообщений</p>';
+    } else {
+        container.innerHTML = messages.map(msg => `
+            <div style="display: flex; flex-direction: column; align-items: ${msg.sender_type === 'admin' ? 'flex-end' : 'flex-start'};">
+                <div style="
+                    background: ${msg.sender_type === 'admin' ? 'var(--primary-warm)' : 'var(--neutral-light)'};
+                    color: ${msg.sender_type === 'admin' ? 'white' : 'var(--text-primary)'};
+                    padding: 0.75rem 1rem;
+                    border-radius: 12px;
+                    border-bottom-right-radius: ${msg.sender_type === 'admin' ? '4px' : '12px'};
+                    border-bottom-left-radius: ${msg.sender_type === 'admin' ? '12px' : '4px'};
+                    max-width: 70%;
+                    word-wrap: break-word;
+                ">
+                    ${escapeHtml(msg.message)}
+                </div>
+                <small style="color: var(--text-muted); margin-top: 0.25rem; font-size: 0.7rem;">
+                    ${new Date(msg.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                    ${msg.sender_type === 'teacher' && msg.is_read ? ' ✓✓' : ''}
+                </small>
+            </div>
+
+            
+
+        `).join('');
+
+            // 👇 ОБРАБОТЧИК УДАЛЕНИЯ ЧАТА
+    document.getElementById('deleteChatBtn')?.addEventListener('click', async () => {
+        if (!confirm('Удалить чат и все сообщения безвозвратно?')) return;
+        
+        // Сначала удаляем все сообщения чата
+        await supabase.from('chat_messages').delete().eq('chat_id', chatId);
+        // Потом удаляем сам чат
+        await supabase.from('chats').delete().eq('id', chatId);
+        
+        // Очищаем правую панель
+        selectedChatId = null;
+        document.getElementById('adminChatHeader').innerHTML = '<p style="color: var(--text-muted); margin: 0;">Выберите чат слева</p>';
+        document.getElementById('adminChatMessages').innerHTML = '<p style="text-align: center; color: var(--text-muted); margin-top: 2rem;">👈 Выберите диалог</p>';
+        document.getElementById('adminChatInput').style.display = 'none';
+        
+        // Обновляем список чатов
+        await loadChatsList();
+        updateAdminUnreadBadge();
+    });
+
+    const sendBtn = document.getElementById('sendAdminMessageBtn');
+    const input = document.getElementById('adminMessageInput');
+    const newSendBtn = sendBtn.cloneNode(true);
+    sendBtn.parentNode.replaceChild(newSendBtn, sendBtn);
+
+    newSendBtn.addEventListener('click', async () => {
+        const msg = input.value.trim();
+        if (!msg || !adminId) return;
+        await supabase.from('chat_messages').insert({
+            chat_id: chatId,
+            sender_type: 'admin',
+            sender_id: adminId,
+            message: msg
+        });
+        input.value = '';
+    });
+
+    input.onkeypress = (e) => {
+        if (e.key === 'Enter') newSendBtn.click();
+    };
+    }
+
+    container.scrollTop = container.scrollHeight;
+
+    // Отмечаем сообщения учителя как прочитанные
+    messages?.filter(m => m.sender_type === 'teacher' && !m.is_read)
+        .forEach(m => supabase.from('chat_messages').update({ is_read: true }).eq('id', m.id));
+
+    // Кнопка смены статуса
+    document.getElementById('toggleChatStatusBtn')?.addEventListener('click', async () => {
+        const newStatus = chat.status === 'open' ? 'closed' : 'open';
+        await supabase.from('chats').update({ status: newStatus }).eq('id', chatId);
+        selectChat(chatId);
+        loadChatsList();
+    });
+
+    // Отправка сообщения
+    // Удаляем старый обработчик и вешаем новый
+const sendBtn = document.getElementById('sendAdminMessageBtn');
+const input = document.getElementById('adminMessageInput');
+
+// Клонируем кнопку, чтобы убрать все старые обработчики
+const newSendBtn = sendBtn.cloneNode(true);
+sendBtn.parentNode.replaceChild(newSendBtn, sendBtn);
+
+newSendBtn.addEventListener('click', async () => {
+    const msg = input.value.trim();
+    if (!msg) return;
+    
+    console.log('Отправка сообщения:', msg, 'chatId:', chatId);
+    
+    const { error } = await supabase
+        .from('chat_messages')
+        .insert({
+            chat_id: chatId,
+            sender_type: 'admin',
+            sender_id: adminId,
+            message: msg
+        });
+    
+    if (error) {
+        console.error('Ошибка отправки:', error);
+        alert('Ошибка отправки: ' + error.message);
+        return;
+    }
+    
+    input.value = '';
+    await loadChatMessages(chatId);
+    await loadChatsList();
+});
+
+// Enter для отправки
+input.onkeypress = (e) => {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        newSendBtn.click();
+    }
+};
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    return String(text).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+async function updateAdminUnreadBadge() {
+    const { count } = await supabase
+        .from('chat_messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('sender_type', 'teacher')
+        .eq('is_read', false);
+
+    const badge = document.getElementById('adminUnreadChatsBadge');
+    if (!badge) return;
+
+    const unread = count || 0;
+    if (unread > 0) {
+        badge.textContent = unread > 9 ? '9+' : unread;
+        badge.classList.remove('hidden');
+    } else {
+        badge.classList.add('hidden');
+    }
+}
 
 
 

@@ -9,22 +9,37 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="admin.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <!-- Chart.js для графиков -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
 <div id="app" class="admin-app">
-    <!-- Сайдбар -->
+    <!-- ===== САЙДБАР ===== -->
     <aside class="sidebar">
         <div class="logo">
             <i class="fas fa-graduation-cap"></i>
             <span>SimpleEd Admin</span>
         </div>
         <nav>
-            <a href="#" class="active" data-tab="teachers"><i class="fas fa-users"></i> Преподаватели</a>
-            <a href="#" data-tab="payments"><i class="fas fa-credit-card"></i> Все оплаты</a>
-            <a href="#" data-tab="stats"><i class="fas fa-chart-bar"></i> Статистика</a>
-            <a href="#" data-tab="settings"><i class="fas fa-cog"></i> Настройки</a>
+            <a href="#" class="active" data-tab="teachers">
+                <i class="fas fa-users"></i> 
+                <span>Преподаватели</span>
+            </a>
+            <a href="#" data-tab="payments">
+                <i class="fas fa-credit-card"></i> 
+                <span>Все оплаты</span>
+            </a>
+            <a href="#" data-tab="stats">
+                <i class="fas fa-chart-bar"></i> 
+                <span>Статистика</span>
+            </a>
+            <a href="#" data-tab="settings">
+                <i class="fas fa-cog"></i> 
+                <span>Настройки</span>
+            </a>
+            <a href="#" data-tab="chats">
+                <i class="fas fa-comments"></i> 
+                <span>Чаты</span>
+                <span id="adminUnreadChatsBadge" class="unread-badge hidden">0</span>
+            </a>
         </nav>
         <div class="sidebar-footer">
             <button id="backToCrmBtn" class="btn btn-secondary" style="width:100%; margin-bottom:0.5rem;">
@@ -36,7 +51,7 @@
         </div>
     </aside>
 
-    <!-- Основной контент -->
+    <!-- ===== ОСНОВНОЙ КОНТЕНТ ===== -->
     <main class="main-content">
         <header>
             <h1>Панель администратора</h1>
@@ -46,7 +61,9 @@
             </div>
         </header>
 
-        <!-- Вкладка Преподаватели -->
+        <!-- ========================================== -->
+        <!-- ВКЛАДКА: ПРЕПОДАВАТЕЛИ                      -->
+        <!-- ========================================== -->
         <section id="teachersTab" class="tab-content active">
             <div class="card">
                 <div class="card-header">
@@ -61,7 +78,24 @@
                     </div>
                 </div>
 
-                <!-- Форма добавления -->
+                <!-- Фильтры -->
+                <div class="filters" style="margin-bottom: 1rem;">
+                    <select id="teacherStatusFilter">
+                        <option value="all">Все (кроме архива)</option>
+                        <option value="active">Активные</option>
+                        <option value="inactive">Неактивные</option>
+                        <option value="vip">VIP</option>
+                        <option value="blocked">Заблокированные</option>
+                    </select>
+                    <button class="btn btn-sm btn-secondary" id="showArchivedBtn">
+                        <i class="fas fa-archive"></i> Архив
+                    </button>
+                    <button class="btn btn-sm btn-primary" id="showActiveBtn" style="display: none;">
+                        <i class="fas fa-users"></i> Активные
+                    </button>
+                </div>
+
+                <!-- Форма добавления преподавателя -->
                 <div id="addTeacherForm" class="form-card hidden">
                     <h3>Новый преподаватель</h3>
                     <form id="newTeacherForm">
@@ -69,9 +103,17 @@
                             <div class="form-group"><label>Email *</label><input type="email" id="newEmail" required></div>
                             <div class="form-group"><label>Имя *</label><input type="text" id="newName" required></div>
                             <div class="form-group"><label>Пароль *</label><input type="text" id="newPassword" required></div>
-                            <div class="form-group"><label>Тариф</label><select id="newPlan"><option value="trial">Trial</option><option value="pro">Pro</option><option value="vip">VIP</option></select></div>
+                            <div class="form-group"><label>Тариф</label><select id="newPlan">
+                                <option value="trial">Trial</option>
+                                <option value="pro">Pro</option>
+                                <option value="vip">VIP</option>
+                            </select></div>
                             <div class="form-group"><label>Доступ до</label><input type="date" id="newAccessUntil"></div>
-                            <div class="form-group"><label>Статус</label><select id="newStatus"><option value="active">Активен</option><option value="inactive">Неактивен</option><option value="vip">VIP</option></select></div>
+                            <div class="form-group"><label>Статус</label><select id="newStatus">
+                                <option value="active">Активен</option>
+                                <option value="inactive">Неактивен</option>
+                                <option value="vip">VIP</option>
+                            </select></div>
                         </div>
                         <div class="form-actions">
                             <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Создать</button>
@@ -81,28 +123,14 @@
                     </form>
                 </div>
 
-                <!-- Внутри секции teachersTab, перед таблицей -->
-                <div class="filters" style="margin-bottom: 1rem;">
-                    <select id="teacherStatusFilter">
-                    <option value="all">Все (кроме архива)</option>
-                    <option value="active">Активные</option>
-                    <option value="inactive">Неактивные</option>
-                    <option value="vip">VIP</option>
-                    <option value="blocked">Заблокированные</option>
-                    </select>
-                    <button class="btn btn-sm btn-secondary" id="showArchivedBtn">
-                    <i class="fas fa-archive"></i> Архив
-                    </button>
-                    <button class="btn btn-sm btn-primary" id="showActiveBtn" style="display: none;">
-                    <i class="fas fa-users"></i> Активные
-                    </button>
-                </div>
-
-                <!-- Таблица -->
+                <!-- Таблица преподавателей -->
                 <div class="table-responsive">
                     <table>
                         <thead>
-                            <tr><th>Имя</th><th>Email</th><th>Тариф</th><th>Доступ до</th><th>Статус</th><th>Оплата до</th><th></th></tr>
+                            <tr>
+                                <th>Имя</th><th>Email</th><th>Тариф</th><th>Доступ до</th>
+                                <th>Статус</th><th>Оплата до</th><th></th>
+                            </tr>
                         </thead>
                         <tbody id="teachersTableBody">
                             <tr><td colspan="7">Загрузка...</td></tr>
@@ -112,340 +140,260 @@
             </div>
         </section>
 
-        <!-- Вкладка Все оплаты -->
-        <!-- Вкладка Оплаты (продажи CRM) -->
-<section id="paymentsTab" class="tab-content">
-    <div class="card">
-        <div class="card-header">
-            <h2><i class="fas fa-credit-card"></i> Продажи CRM</h2>
-            <div class="filters">
-                <select id="salesPeriodSelect">
-                    <option value="7">Последние 7 дней</option>
-                    <option value="30" selected>Последние 30 дней</option>
-                    <option value="90">Последние 3 месяца</option>
-                    <option value="365">Последний год</option>
-                    <option value="all">Всё время</option>
-                </select>
-                <button class="btn btn-sm btn-primary" id="refreshSalesBtn">
-                    <i class="fas fa-sync-alt"></i> Обновить
-                </button>
-                <button class="btn btn-sm btn-success" id="exportSalesBtn">
-                    <i class="fas fa-download"></i> Экспорт
-                </button>
-            </div>
-        </div>
+        <!-- ========================================== -->
+        <!-- ВКЛАДКА: ВСЕ ОПЛАТЫ (ПРОДАЖИ CRM)           -->
+        <!-- ========================================== -->
+        <section id="paymentsTab" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-credit-card"></i> Продажи CRM</h2>
+                    <div class="filters">
+                        <select id="salesPeriodSelect">
+                            <option value="7">7 дней</option>
+                            <option value="30" selected>30 дней</option>
+                            <option value="90">3 месяца</option>
+                            <option value="365">Год</option>
+                            <option value="all">Всё время</option>
+                        </select>
+                        <button class="btn btn-sm btn-primary" id="refreshSalesBtn">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                        <button class="btn btn-sm btn-success" id="exportSalesBtn">
+                            <i class="fas fa-download"></i> Экспорт
+                        </button>
+                    </div>
+                </div>
 
-        <!-- Сводка по продажам -->
-        <div class="stats-grid">
-            <div class="stat-card highlight">
-                <div class="stat-icon"><i class="fas fa-ruble-sign"></i></div>
-                <div class="stat-content">
-                    <div class="stat-value" id="totalSalesRevenue">0 ₽</div>
-                    <div class="stat-label">Общая выручка</div>
+                <!-- Сводка -->
+                <div class="stats-grid">
+                    <div class="stat-card highlight">
+                        <div class="stat-icon"><i class="fas fa-ruble-sign"></i></div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="totalSalesRevenue">0 ₽</div>
+                            <div class="stat-label">Общая выручка</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-shopping-cart"></i></div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="totalSalesCount">0</div>
+                            <div class="stat-label">Всего продаж</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-user-check"></i></div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="activeSubscriptions">0</div>
+                            <div class="stat-label">Активных подписок</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="avgCheck">0 ₽</div>
+                            <div class="stat-label">Средний чек</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Таблица оплат -->
+                <div class="table-responsive" style="margin-top: 1.5rem;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Дата</th><th>Преподаватель</th><th>Тариф</th>
+                                <th>Сумма</th><th>Оплачено до</th><th>Заметка</th>
+                            </tr>
+                        </thead>
+                        <tbody id="salesTableBody">
+                            <tr><td colspan="6">Загрузка...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-shopping-cart"></i></div>
-                <div class="stat-content">
-                    <div class="stat-value" id="totalSalesCount">0</div>
-                    <div class="stat-label">Всего продаж</div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- ВКЛАДКА: СТАТИСТИКА                         -->
+        <!-- ========================================== -->
+        <section id="statsTab" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-chart-line"></i> Статистика платформы</h2>
+                    <div class="filters">
+                        <select id="statsPeriodSelect">
+                            <option value="7">7 дней</option>
+                            <option value="30" selected>30 дней</option>
+                            <option value="90">3 месяца</option>
+                            <option value="365">Год</option>
+                            <option value="all">Всё время</option>
+                        </select>
+                        <button class="btn btn-sm btn-primary" id="refreshStatsBtn">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Общие показатели -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-users"></i></div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="totalTeachers">0</div>
+                            <div class="stat-label">Преподавателей</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-user-graduate"></i></div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="totalStudents">0</div>
+                            <div class="stat-label">Учеников</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-layer-group"></i></div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="totalGroups">0</div>
+                            <div class="stat-label">Групп</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-calendar-check"></i></div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="totalLessons">0</div>
+                            <div class="stat-label">Уроков</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Топ преподавателей -->
+                <div style="margin-top: 2rem;">
+                    <h3><i class="fas fa-crown"></i> Топ преподавателей</h3>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>#</th><th>Преподаватель</th><th>Учеников</th>
+                                    <th>Уроков</th><th>Выручка</th><th>Статус</th>
+                                </tr>
+                            </thead>
+                            <tbody id="topTeachersBody">
+                                <tr><td colspan="6">Загрузка...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-user-check"></i></div>
-                <div class="stat-content">
-                    <div class="stat-value" id="activeSubscriptions">0</div>
-                    <div class="stat-label">Активных подписок</div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- ВКЛАДКА: НАСТРОЙКИ                          -->
+        <!-- ========================================== -->
+        <section id="settingsTab" class="tab-content">
+            <div class="card">
+                <h2><i class="fas fa-cog"></i> Настройки платформы</h2>
+                <p style="color:#7A6E62; margin-bottom:2rem;">Управление тарифами и системными уведомлениями</p>
+
+                <!-- Управление тарифами -->
+                <div class="settings-block">
+                    <h3><i class="fas fa-tags"></i> Тарифные планы</h3>
+                    <div class="table-responsive">
+                        <table id="tariffsTable">
+                            <thead>
+                                <tr><th>Название</th><th>Цена (₽)</th><th>Длительность (дней)</th><th>Возможности</th><th></th></tr>
+                            </thead>
+                            <tbody id="tariffsTableBody">
+                                <tr><td colspan="5">Загрузка...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <button class="btn btn-primary mt-2" id="addTariffBtn"><i class="fas fa-plus"></i> Добавить тариф</button>
+                    <button class="btn btn-secondary mt-2" id="resetTariffsBtn"><i class="fas fa-undo"></i> Сбросить до стандартных</button>
+                </div>
+
+                <hr style="margin:2rem 0; border:0; border-top:1px solid #E9E1D4;">
+
+                <!-- Уведомления -->
+                <div class="settings-block">
+                    <h3><i class="fas fa-bullhorn"></i> Уведомления преподавателям</h3>
+                    <div class="form-card">
+                        <h4>Новое уведомление</h4>
+                        <form id="newAnnouncementForm">
+                            <div class="form-grid">
+                                <div class="form-group"><label>Заголовок</label><input type="text" id="announceTitle" required></div>
+                                <div class="form-group"><label>Дата публикации</label><input type="date" id="announceDate" required></div>
+                            </div>
+                            <div class="form-group"><label>Текст</label><textarea id="announceContent" rows="3" required></textarea></div>
+                            <button type="submit" class="btn btn-success"><i class="fas fa-plus"></i> Создать</button>
+                            <div id="announceFormMessage" class="message" style="margin-top:0.5rem;"></div>
+                        </form>
+                    </div>
+
+                    <h4>Запланированные уведомления</h4>
+                    <div class="table-responsive">
+                        <table id="announcementsTable">
+                            <thead>
+                                <tr><th>Заголовок</th><th>Дата</th><th>Статус</th><th></th></tr>
+                            </thead>
+                            <tbody id="announcementsTableBody">
+                                <tr><td colspan="4">Загрузка...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <hr style="margin:2rem 0; border:0; border-top:1px solid #E9E1D4;">
+
+                <!-- Экспорт -->
+                <div class="settings-block">
+                    <h3><i class="fas fa-download"></i> Резервное копирование</h3>
+                    <div style="display:flex; gap:1rem;">
+                        <button class="btn btn-primary" id="exportTeachersBtn"><i class="fas fa-file-csv"></i> Экспорт преподавателей</button>
+                        <button class="btn btn-primary" id="exportPaymentsBtn"><i class="fas fa-file-csv"></i> Экспорт всех оплат</button>
+                    </div>
                 </div>
             </div>
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
-                <div class="stat-content">
-                    <div class="stat-value" id="avgCheck">0 ₽</div>
-                    <div class="stat-label">Средний чек</div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- ВКЛАДКА: ЧАТЫ С ПРЕПОДАВАТЕЛЯМИ             -->
+        <!-- ========================================== -->
+        <section id="chatsTab" class="tab-content">
+            <div class="card" style="display: flex; height: 70vh; padding: 0; overflow: hidden;">
+                <!-- Левая панель: список чатов -->
+                <div style="width: 300px; border-right: 1px solid var(--neutral-gray); overflow-y: auto; background: var(--neutral-light);">
+                    <div style="padding: 1rem; border-bottom: 1px solid var(--neutral-gray); display: flex; justify-content: space-between; align-items: center;">
+                        <h3 style="margin: 0;"><i class="fas fa-comments"></i> Диалоги</h3>
+                        <button class="btn btn-sm btn-secondary" id="toggleArchiveFilterBtn">
+                            Архив
+                        </button>
+                    </div>
+                    <div id="chatsListContainer"></div>
+                </div>
+                
+                <!-- Правая панель: сообщения -->
+                <div style="flex: 1; display: flex; flex-direction: column; background: white;">
+                    <div id="adminChatHeader" style="padding: 1rem; border-bottom: 1px solid var(--neutral-gray); background: var(--neutral-light);">
+                        <p style="color: var(--text-muted); margin: 0;">Выберите чат слева</p>
+                    </div>
+                    <div id="adminChatMessages" style="flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                        <p style="text-align: center; color: var(--text-muted); margin-top: 2rem;">👈 Выберите диалог</p>
+                    </div>
+                    <div id="adminChatInput" style="padding: 1rem; border-top: 1px solid var(--neutral-gray); display: none;">
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input type="text" id="adminMessageInput" placeholder="Напишите ответ..." style="flex: 1; padding: 0.75rem; border: 1px solid var(--neutral-gray); border-radius: 8px;">
+                            <button class="btn btn-primary" id="sendAdminMessageBtn" style="padding: 0.75rem 1.5rem;">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-
-        <!-- Дополнительные метрики -->
-        <div class="stats-grid" style="margin-top: 1.5rem;">
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-calendar"></i></div>
-                <div class="stat-content">
-                    <div class="stat-value" id="salesThisMonth">0 ₽</div>
-                    <div class="stat-label">Выручка за текущий месяц</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-trophy"></i></div>
-                <div class="stat-content">
-                    <div class="stat-value" id="bestSalesDay">—</div>
-                    <div class="stat-label">Лучший день по продажам</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-tags"></i></div>
-                <div class="stat-content">
-                    <div class="stat-value" id="mostPopularPlan">—</div>
-                    <div class="stat-label">Самый популярный тариф</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- График продаж -->
-        <div style="margin-top: 2rem;">
-            <h3><i class="fas fa-chart-bar"></i> Динамика продаж</h3>
-            <canvas id="salesChart" style="width: 100%; max-height: 300px;"></canvas>
-        </div>
-
-        <!-- Распределение по тарифам -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem;">
-            <div>
-                <h3><i class="fas fa-chart-pie"></i> Продажи по тарифам</h3>
-                <canvas id="planChart" style="width: 100%; max-height: 250px;"></canvas>
-            </div>
-            <div>
-                <h3><i class="fas fa-chart-pie"></i> Статусы подписок</h3>
-                <canvas id="statusChart" style="width: 100%; max-height: 250px;"></canvas>
-            </div>
-        </div>
-
-        <!-- Таблица всех оплат -->
-        <div style="margin-top: 2rem;">
-            <h3><i class="fas fa-list"></i> История продаж</h3>
-            <div class="table-responsive">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Дата</th>
-                            <th>Преподаватель</th>
-                            <th>Тариф</th>
-                            <th>Сумма</th>
-                            <th>Оплачено до</th>
-                            <th>Заметка</th>
-                        </tr>
-                    </thead>
-                    <tbody id="salesTableBody">
-                        <tr><td colspan="6">Загрузка...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-</section>
-        
-
-
-        
-
-        <!-- ВКЛАДКА НАСТРОЙКИ -->
-<section id="settingsTab" class="tab-content">
-  <div class="card">
-      <h2><i class="fas fa-cog"></i> Настройки платформы</h2>
-      <p style="color:#7A6E62; margin-bottom:2rem;">Управление тарифами и системными уведомлениями</p>
-
-      <!-- БЛОК 1: УПРАВЛЕНИЕ ТАРИФАМИ -->
-      <div class="settings-block">
-          <h3><i class="fas fa-tags"></i> Тарифные планы</h3>
-          <p style="color:#7A6E62; margin-bottom:1rem;">Редактируйте параметры тарифов и добавляйте новые.</p>
-          <div class="table-responsive">
-              <table id="tariffsTable">
-                  <thead>
-                      <tr><th>Название</th><th>Цена (₽)</th><th>Длительность (дней)</th><th>Возможности</th><th></th></tr>
-                  </thead>
-                  <tbody id="tariffsTableBody">
-                      <tr><td colspan="5">Загрузка...</td></tr>
-                  </tbody>
-              </table>
-          </div>
-          <button class="btn btn-primary mt-2" id="addTariffBtn"><i class="fas fa-plus"></i> Добавить тариф</button>
-          <button class="btn btn-secondary mt-2" id="resetTariffsBtn"><i class="fas fa-undo"></i> Сбросить до стандартных</button>
-      </div>
-
-      <hr style="margin:2rem 0; border:0; border-top:1px solid #E9E1D4;">
-
-      <!-- БЛОК 2: УВЕДОМЛЕНИЯ ДЛЯ КЛИЕНТОВ -->
-      <div class="settings-block">
-          <h3><i class="fas fa-bullhorn"></i> Уведомления в ЛК клиентов</h3>
-          <p style="color:#7A6E62; margin-bottom:1rem;">Создавайте сообщения, которые увидят учителя в своём кабинете.</p>
-          
-          <!-- Форма создания уведомления -->
-          <div class="form-card" style="margin-bottom:2rem;">
-              <h4>Новое уведомление</h4>
-              <form id="newAnnouncementForm">
-                  <div class="form-grid">
-                      <div class="form-group">
-                          <label>Заголовок</label>
-                          <input type="text" id="announceTitle" placeholder="Важное объявление" required>
-                      </div>
-                      <div class="form-group">
-                          <label>Дата публикации</label>
-                          <input type="date" id="announceDate" required>
-                      </div>
-                  </div>
-                  <div class="form-group">
-                      <label>Текст уведомления</label>
-                      <textarea id="announceContent" rows="3" placeholder="Текст, который увидят учителя..." required></textarea>
-                  </div>
-                  <button type="submit" class="btn btn-success"><i class="fas fa-plus"></i> Создать</button>
-                  <div id="announceFormMessage" class="message" style="margin-top:0.5rem;"></div>
-              </form>
-          </div>
-
-          <!-- Список запланированных уведомлений -->
-          <h4>Запланированные уведомления</h4>
-          <div class="table-responsive">
-              <table id="announcementsTable">
-                  <thead>
-                      <tr><th>Заголовок</th><th>Дата</th><th>Статус</th><th>Действия</th></tr>
-                  </thead>
-                  <tbody id="announcementsTableBody">
-                      <tr><td colspan="4">Загрузка...</td></tr>
-                  </tbody>
-              </table>
-          </div>
-      </div>
-
-      <hr style="margin:2rem 0; border:0; border-top:1px solid #E9E1D4;">
-
-      <!-- БЛОК 3: ЭКСПОРТ ДАННЫХ -->
-      <div class="settings-block">
-          <h3><i class="fas fa-download"></i> Резервное копирование</h3>
-          <p style="color:#7A6E62; margin-bottom:1rem;">Скачайте данные преподавателей и оплат в формате CSV.</p>
-          <div style="display:flex; gap:1rem; flex-wrap:wrap;">
-              <button class="btn btn-primary" id="exportTeachersBtn"><i class="fas fa-file-csv"></i> Экспорт преподавателей</button>
-              <button class="btn btn-primary" id="exportPaymentsBtn"><i class="fas fa-file-csv"></i> Экспорт всех оплат</button>
-          </div>
-      </div>
-  </div>
-</section>
-
-
-
-
-
-
-        <!-- Заглушки -->
-        <!-- Вкладка Статистика -->
-<section id="statsTab" class="tab-content">
-    <div class="card">
-        <div class="card-header">
-            <h2><i class="fas fa-chart-line"></i> Статистика платформы</h2>
-            <div class="filters">
-                <select id="statsPeriodSelect">
-                    <option value="7">Последние 7 дней</option>
-                    <option value="30" selected>Последние 30 дней</option>
-                    <option value="90">Последние 3 месяца</option>
-                    <option value="365">Последний год</option>
-                    <option value="all">Всё время</option>
-                </select>
-                <button class="btn btn-sm btn-primary" id="refreshStatsBtn">
-                    <i class="fas fa-sync-alt"></i> Обновить
-                </button>
-            </div>
-        </div>
-
-        <!-- Общие показатели -->
-        <div class="stats-grid" id="overallStats">
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-users"></i></div>
-                <div class="stat-content">
-                    <div class="stat-value" id="totalTeachers">0</div>
-                    <div class="stat-label">Преподавателей</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-user-graduate"></i></div>
-                <div class="stat-content">
-                    <div class="stat-value" id="totalStudents">0</div>
-                    <div class="stat-label">Учеников</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-layer-group"></i></div>
-                <div class="stat-content">
-                    <div class="stat-value" id="totalGroups">0</div>
-                    <div class="stat-label">Групп</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-calendar-check"></i></div>
-                <div class="stat-content">
-                    <div class="stat-value" id="totalLessons">0</div>
-                    <div class="stat-label">Уроков</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Финансовые показатели -->
-        <div class="stats-grid" style="margin-top: 1.5rem;">
-            <div class="stat-card highlight">
-                <div class="stat-icon"><i class="fas fa-ruble-sign"></i></div>
-                <div class="stat-content">
-                    <div class="stat-value" id="totalRevenue">0 ₽</div>
-                    <div class="stat-label">Общая выручка</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-chart-bar"></i></div>
-                <div class="stat-content">
-                    <div class="stat-value" id="avgRevenuePerTeacher">0 ₽</div>
-                    <div class="stat-label">Средняя выручка на учителя</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-trophy"></i></div>
-                <div class="stat-content">
-                    <div class="stat-value" id="topTeacher">—</div>
-                    <div class="stat-label">Самый активный учитель</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Графики -->
-        <div style="margin-top: 2rem;">
-            <h3><i class="fas fa-chart-line"></i> Динамика по дням</h3>
-            <canvas id="revenueChart" style="width: 100%; max-height: 300px;"></canvas>
-        </div>
-
-        <!-- Топ преподавателей -->
-        <div style="margin-top: 2rem;">
-            <h3><i class="fas fa-crown"></i> Топ преподавателей</h3>
-            <div class="table-responsive">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Преподаватель</th>
-                            <th>Учеников</th>
-                            <th>Уроков</th>
-                            <th>Выручка</th>
-                            <th>Статус</th>
-                        </tr>
-                    </thead>
-                    <tbody id="topTeachersBody">
-                        <tr><td colspan="6">Загрузка...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Активность по дням недели -->
-        <div style="margin-top: 2rem;">
-            <h3><i class="fas fa-calendar-week"></i> Активность по дням недели</h3>
-            <canvas id="weekdayChart" style="width: 100%; max-height: 200px;"></canvas>
-        </div>
-    </div>
-</section>
-
-
-
-
-        <section id="settingsTab" class="tab-content"><div class="card"><h2>Настройки</h2><p>Управление платформой</p></div></section>
+        </section>
     </main>
 </div>
 
-<!-- Модальное окно -->
+<!-- Модальное окно для карточки преподавателя -->
 <div id="teacherModal" class="modal hidden">
     <div class="modal-card">
         <div class="modal-header">
@@ -456,13 +404,15 @@
     </div>
 </div>
 
+<!-- Глобальный лоадер -->
 <div id="globalLoader" class="global-loader hidden">
     <div class="loader-spinner"></div>
 </div>
 
-<!-- Скрипты -->
+<!-- ===== СКРИПТЫ ===== -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
-<script src="admin.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script type="module" src="./admin_modules/admin-main.js"></script>
 </body>
 </html>

@@ -358,3 +358,29 @@
     background: var(--neutral-gray);
     color: var(--text-secondary);
 }
+
+/* Чат в админке */
+.chat-item {
+    transition: background 0.2s;
+}
+.chat-item:hover {
+    background: var(--primary-soft) !important;
+}
+.chat-item.active {
+    background: var(--primary-soft);
+    border-left: 3px solid var(--primary-warm);
+}
+.chat-item.unread {
+    position: relative;
+}
+.chat-item.unread::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 60%;
+    background: var(--primary-warm);
+    border-radius: 0 4px 4px 0;
+}
