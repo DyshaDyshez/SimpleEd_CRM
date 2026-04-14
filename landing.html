@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SimpleEd CRM — умная система для репетиторов</title>
+    <meta name="description" content="SimpleEd CRM помогает репетиторам управлять учениками, расписанием и финансами. Попробуйте бесплатно!">
+    
+    <!-- Стили -->
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        /* Дополнительные стили для лендинга */
+        .landing-page {
+            background: linear-gradient(135deg, #FEFAE0 0%, #FAEDCD 100%);
+        }
+        .hero {
+            padding: 4rem 2rem;
+            text-align: center;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .hero h1 {
+            font-size: 3rem;
+            color: #3D342B;
+            margin-bottom: 1.5rem;
+        }
+        .hero p {
+            font-size: 1.25rem;
+            color: #5C4F42;
+            margin-bottom: 2rem;
+        }
+        .hero-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+        .btn-large {
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+            border-radius: 50px;
+        }
+        .features {
+            padding: 4rem 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .features h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            color: #3D342B;
+            margin-bottom: 3rem;
+        }
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+        }
+        .feature-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 24px;
+            box-shadow: 0 8px 24px rgba(60, 50, 40, 0.12);
+            text-align: center;
+        }
+        .feature-card i {
+            font-size: 2.5rem;
+            color: #D4A373;
+            margin-bottom: 1rem;
+        }
+        .feature-card h3 {
+            margin-bottom: 1rem;
+            color: #3D342B;
+        }
+        .pricing {
+            padding: 4rem 2rem;
+            background: white;
+            text-align: center;
+        }
+        .pricing h2 {
+            font-size: 2.5rem;
+            color: #3D342B;
+            margin-bottom: 3rem;
+        }
+        .pricing-cards {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .pricing-card {
+            background: #FEFAE0;
+            padding: 2rem;
+            border-radius: 24px;
+            width: 280px;
+            box-shadow: 0 4px 12px rgba(60, 50, 40, 0.08);
+        }
+        .pricing-card.highlight {
+            background: #D4A373;
+            color: white;
+        }
+        .pricing-card.highlight h3,
+        .pricing-card.highlight .price {
+            color: white;
+        }
+        .pricing-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .price {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #D4A373;
+            margin-bottom: 1rem;
+        }
+        .pricing-card ul {
+            list-style: none;
+            padding: 0;
+            margin: 1.5rem 0;
+        }
+        .pricing-card li {
+            padding: 0.5rem 0;
+        }
+        .cta {
+            padding: 4rem 2rem;
+            text-align: center;
+            background: #5C4F42;
+            color: white;
+        }
+        .cta h2 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+        .cta .btn-primary {
+            background: #D4A373;
+            border: none;
+        }
+        .footer {
+            padding: 2rem;
+            text-align: center;
+            color: #7A6E62;
+        }
+    </style>
+</head>
+<body class="landing-page">
+
+    <!-- Хедер -->
+    <header style="padding: 1.5rem 2rem; display: flex; justify-content: space-between; align-items: center;">
+        <div class="logo" style="display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fas fa-book-open" style="font-size: 2rem; color: #D4A373;"></i>
+            <span style="font-size: 1.5rem; font-weight: 700; color: #3D342B;">SimpleEd</span>
+        </div>
+        <a href="auth.html" class="btn btn-primary">Войти</a>
+    </header>
+
+    <!-- Главный экран -->
+    <section class="hero">
+        <h1>Управляй учениками, расписанием и финансами в одном окне</h1>
+        <p>SimpleEd CRM создана репетитором для репетиторов. Всё, что нужно для работы — уже внутри.</p>
+        <div class="hero-buttons">
+            <a href="auth.html" class="btn btn-primary btn-large">Попробовать бесплатно</a>
+            <a href="#features" class="btn btn-secondary btn-large">Узнать больше</a>
+        </div>
+    </section>
+
+    <!-- Возможности -->
+    <section id="features" class="features">
+        <h2>Что внутри SimpleEd</h2>
+        <div class="features-grid">
+            <div class="feature-card">
+                <i class="fas fa-users"></i>
+                <h3>Ученики</h3>
+                <p>Ведите базу учеников, контакты родителей, заметки и историю занятий.</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-calendar-alt"></i>
+                <h3>Расписание</h3>
+                <p>Удобный календарь, drag-and-drop, статусы уроков, напоминания.</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-coins"></i>
+                <h3>Финансы</h3>
+                <p>Учёт оплат, баланс уроков, статистика доходов, экспорт в Excel.</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-robot"></i>
+                <h3>ИИ-помощник</h3>
+                <p>Генерация отчётов для родителей, рекомендации по обучению.</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-layer-group"></i>
+                <h3>Группы</h3>
+                <p>Объединяйте учеников в группы, ведите групповые занятия.</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-sticky-note"></i>
+                <h3>Заметки</h3>
+                <p>Личные записи, привязка к ученикам и группам, поиск.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Тарифы -->
+    <section class="pricing">
+        <h2>Выберите тариф</h2>
+        <div class="pricing-cards">
+            <div class="pricing-card">
+                <h3>Trial</h3>
+                <div class="price">0 ₽</div>
+                <p>14 дней</p>
+                <ul>
+                    <li>✓ Все функции</li>
+                    <li>✓ Без ограничений</li>
+                    <li>✓ Поддержка в чате</li>
+                </ul>
+                <a href="auth.html" class="btn btn-primary">Начать</a>
+            </div>
+            <div class="pricing-card highlight">
+                <h3>Pro</h3>
+                <div class="price">490 ₽</div>
+                <p>в месяц</p>
+                <ul>
+                    <li>✓ Всё из Trial</li>
+                    <li>✓ ИИ-отчёты</li>
+                    <li>✓ Приоритетная поддержка</li>
+                </ul>
+                <a href="auth.html" class="btn btn-primary" style="background: white; color: #D4A373;">Выбрать</a>
+            </div>
+            <div class="pricing-card">
+                <h3>VIP</h3>
+                <div class="price">1290 ₽</div>
+                <p>в месяц</p>
+                <ul>
+                    <li>✓ Всё из Pro</li>
+                    <li>✓ Персональные консультации</li>
+                    <li>✓ Ранний доступ к фичам</li>
+                </ul>
+                <a href="auth.html" class="btn btn-primary">Выбрать</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Призыв к действию -->
+    <section class="cta">
+        <h2>Начните прямо сейчас</h2>
+        <p style="margin-bottom: 2rem; font-size: 1.2rem;">14 дней бесплатного доступа ко всем функциям</p>
+        <a href="auth.html" class="btn btn-primary btn-large">Попробовать бесплатно</a>
+    </section>
+
+    <!-- Футер -->
+    <footer class="footer">
+        <p>© 2026 SimpleEd CRM. Сделано с ❤️ для репетиторов.</p>
+        <p style="margin-top: 1rem;">
+            <a href="#" style="color: #7A6E62; margin: 0 1rem;">Политика конфиденциальности</a>
+            <a href="#" style="color: #7A6E62; margin: 0 1rem;">Контакты</a>
+        </p>
+    </footer>
+
+</body>
+</html>

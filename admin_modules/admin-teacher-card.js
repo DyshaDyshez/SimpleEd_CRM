@@ -45,7 +45,6 @@ function showNotificationModal(teacherId, teacherName, supabase) {
     modal.querySelectorAll('.close-modal').forEach(btn => btn.addEventListener('click', closeModal));
     modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
 
-    // Шаблоны сообщений
     const typeSelect = modal.querySelector('#notifyType');
     const titleInput = modal.querySelector('#notifyTitle');
     const contentTextarea = modal.querySelector('#notifyContent');
@@ -112,8 +111,6 @@ function showNotificationModal(teacherId, teacherName, supabase) {
     });
 }
 
-
-
 // ==================== ОСНОВНАЯ ФУНКЦИЯ КАРТОЧКИ ====================
 export async function openTeacherCardModal(teacherId, supabase, onUpdate) {
     const modal = document.getElementById('teacherModal');
@@ -121,13 +118,11 @@ export async function openTeacherCardModal(teacherId, supabase, onUpdate) {
     const modalContent = document.getElementById('modalContent');
     const closeBtn = document.getElementById('closeModalBtn');
     
-    // Функция закрытия
     const closeModal = () => {
         modal.classList.add('hidden');
         document.removeEventListener('keydown', handleEscape);
     };
     
-    // Обработчик Escape
     const handleEscape = (e) => {
         if (e.key === 'Escape') closeModal();
     };
@@ -143,28 +138,26 @@ export async function openTeacherCardModal(teacherId, supabase, onUpdate) {
     closeBtn.addEventListener('click', closeModal);
 
     try {
-        // Загружаем профиль
         const { data: profile, error } = await supabase
             .from('teacher_profiles')
             .select('*')
             .eq('id', teacherId)
             .single();
-            
         if (error) throw error;
 
-        // Загружаем статистику
-        const [lessRes, studRes, payRes, noteRes] = await Promise.allSettled([
+        const [lessRes, studRes, payRes, noteRes, tariffsRes] = await Promise.allSettled([
             supabase.from('lessons').select('*', { count: 'exact', head: true }).eq('teacher_id', teacherId),
             supabase.from('students').select('*', { count: 'exact', head: true }).eq('teacher_id', teacherId),
             supabase.from('teacher_payments').select('*').eq('teacher_id', teacherId).order('payment_date', { ascending: false }),
-            supabase.from('teacher_notes').select('*').eq('teacher_id', teacherId).order('created_at', { ascending: false })
+            supabase.from('teacher_notes').select('*').eq('teacher_id', teacherId).order('created_at', { ascending: false }),
+            supabase.from('tariffs').select('*').order('price')
         ]);
 
         const lessons = lessRes.status === 'fulfilled' ? lessRes.value.count : '?';
         const students = studRes.status === 'fulfilled' ? studRes.value.count : '?';
         const payments = payRes.status === 'fulfilled' ? payRes.value.data : [];
         const notes = noteRes.status === 'fulfilled' ? noteRes.value.data : [];
-        const { data: tariffs } = await supabase.from('tariffs').select('*').order('price');
+        const tariffs = tariffsRes.status === 'fulfilled' ? tariffsRes.value.data : [];
 
         const birthdayFormatted = profile.birthday 
             ? new Date(profile.birthday).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })
@@ -205,16 +198,14 @@ export async function openTeacherCardModal(teacherId, supabase, onUpdate) {
                     </div>
                     <div class="form-group">
                         <label>Тариф</label>
-                    <select id="editPlan">
-                     ${tariffs.map(t => {
-                        // Приводим к нижнему регистру для сравнения
-                        const isSelected = profile.subscription_plan?.toLowerCase() === t.name?.toLowerCase();
-                        return `<option value="${t.name}" ${isSelected ? 'selected' : ''}>
-                            ${t.name} (${t.price}₽ / ${t.duration_days} дн.)
-                        </option>`;
-                    }).join('')}
-                    </select>
-                
+                        <select id="editPlan">
+                            ${tariffs.map(t => {
+                                const isSelected = profile.subscription_plan?.toLowerCase() === t.name?.toLowerCase();
+                                return `<option value="${t.name}" ${isSelected ? 'selected' : ''}>
+                                    ${t.name} (${t.price}₽ / ${t.duration_days} дн.)
+                                </option>`;
+                            }).join('')}
+                        </select>
                     </div>
                     <div class="form-group">
                         <label>Доступ до</label>
@@ -293,7 +284,6 @@ export async function openTeacherCardModal(teacherId, supabase, onUpdate) {
 
         // === ОБРАБОТЧИКИ ===
         
-        // Сохранение формы преподавателя
         document.getElementById('editTeacherForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -318,7 +308,23 @@ export async function openTeacherCardModal(teacherId, supabase, onUpdate) {
             
             const newPass = document.getElementById('editPassword').value.trim();
             if (newPass) {
-                await supabase.auth.admin.updateUserById(teacherId, { password: newPass });
+                try {
+                    const response = await fetch('https://yyohojhvayfcwiqrdiqf.supabase.co/functions/v1/update-password', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ userId: teacherId, password: newPass })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (!response.ok) {
+                        alert('Пароль не изменён: ' + (result.error || 'Неизвестная ошибка'));
+                        return;
+                    }
+                } catch (err) {
+                    alert('Ошибка при смене пароля: ' + err.message);
+                    return;
+                }
             }
             
             alert('Сохранено!');
@@ -326,12 +332,10 @@ export async function openTeacherCardModal(teacherId, supabase, onUpdate) {
             if (onUpdate) onUpdate();
         });
         
-        // Отправка уведомления
         document.getElementById('notifyTeacherBtn').addEventListener('click', () => {
             showNotificationModal(teacherId, profile.teacher_name, supabase);
         });
         
-        // Архивация
         document.getElementById('archiveTeacherBtn').addEventListener('click', async () => {
             if (!confirm('Переместить преподавателя в архив?')) return;
             
@@ -344,7 +348,6 @@ export async function openTeacherCardModal(teacherId, supabase, onUpdate) {
             if (onUpdate) onUpdate();
         });
         
-        // Показать/скрыть форму добавления оплаты
         document.getElementById('showAddPaymentBtn').addEventListener('click', () => {
             const block = document.getElementById('addPaymentBlock');
             block.style.display = block.style.display === 'none' ? 'block' : 'none';
@@ -355,7 +358,6 @@ export async function openTeacherCardModal(teacherId, supabase, onUpdate) {
             document.getElementById('payNote').value = '';
         });
         
-        // Сохранение оплаты
         document.getElementById('savePaymentBtn').addEventListener('click', async () => {
             const amount = document.getElementById('payAmount').value;
             const until = document.getElementById('payUntil').value;
@@ -397,7 +399,6 @@ export async function openTeacherCardModal(teacherId, supabase, onUpdate) {
             openTeacherCardModal(teacherId, supabase, onUpdate);
         });
         
-        // Редактирование и удаление оплат (делегирование)
         modalContent.addEventListener('click', (e) => {
             const editBtn = e.target.closest('.edit-payment-btn');
             const deleteBtn = e.target.closest('.delete-payment-btn');
@@ -433,7 +434,6 @@ export async function openTeacherCardModal(teacherId, supabase, onUpdate) {
             }
         });
         
-        // Сохранение заметки
         document.getElementById('saveNoteBtn').addEventListener('click', async () => {
             const note = document.getElementById('newNote').value.trim();
             if (!note) return;
@@ -452,4 +452,3 @@ export async function openTeacherCardModal(teacherId, supabase, onUpdate) {
         modalContent.innerHTML = `<p class="error-message">Ошибка загрузки: ${err.message}</p>`;
     }
 }
-

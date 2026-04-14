@@ -11,6 +11,12 @@ let showArchived = false; // Показывать ли архивных преп
 export function initTeachersModule(supabaseClient) {
     supabase = supabaseClient;
     
+    document.getElementById('generatePasswordBtn')?.addEventListener('click', () => {
+        const password = generateRandomPassword(12);
+        document.getElementById('newPassword').value = password;
+    });
+
+
     // Привязываем события к кнопкам
     document.getElementById('addTeacherBtn')?.addEventListener('click', toggleAddForm);
     document.getElementById('cancelAddBtn')?.addEventListener('click', hideAddForm);
@@ -283,4 +289,14 @@ async function remindAboutPayments() {
     } else {
         alert('Нет преподавателей с окончанием оплаты в ближайшие 3 дня.');
     }
+}
+
+// ==================== ГЕНЕРАЦИЯ СЛУЧАЙНОГО ПАРОЛЯ ====================
+function generateRandomPassword(length = 12) {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%';
+    let password = '';
+    for (let i = 0; i < length; i++) {
+        password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
 }
