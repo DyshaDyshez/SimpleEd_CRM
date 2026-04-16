@@ -198,8 +198,62 @@ export function resetDashboardCache() {
   cachedCompleted = null;
 }
 
+// ==================== КАСТОМНОЕ ОКНО ПОДТВЕРЖДЕНИЯ ====================
+export function showConfirmModal(message, onConfirm, onCancel = () => {}) {
+  console.log('showConfirmModal вызвана с сообщением:', message);
+  
+  // Удаляем старое окно, если есть
+  document.querySelector('.modal.confirm-modal')?.remove();
+
+  const modal = document.createElement('div');
+  modal.className = 'modal confirm-modal';
+  modal.innerHTML = `
+      <div class="modal-card" style="max-width: 400px; text-align: center;">
+          <div class="modal-header">
+              <h3>Подтверждение</h3>
+              <button class="close-modal">&times;</button>
+          </div>
+          <div class="modal-body" style="padding: 1.5rem 1rem;">
+              <p style="font-size: 1.1rem; margin-bottom: 1.5rem;">${message}</p>
+              <div class="modal-actions" style="justify-content: center; gap: 1rem;">
+                  <button class="btn btn-danger" id="confirmYesBtn">Да, удалить</button>
+                  <button class="btn btn-secondary" id="confirmNoBtn">Отмена</button>
+              </div>
+          </div>
+      </div>
+  `;
+  document.body.appendChild(modal);
+  
+  console.log('Модальное окно добавлено в DOM');
+
+  const closeModal = () => {
+      console.log('Модальное окно закрыто');
+      modal.remove();
+      onCancel();
+  };
+
+  modal.querySelector('.close-modal').addEventListener('click', closeModal);
+  modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+  });
+  modal.querySelector('#confirmNoBtn').addEventListener('click', closeModal);
+  modal.querySelector('#confirmYesBtn').addEventListener('click', () => {
+      console.log('Нажата кнопка "Да, удалить"');
+      modal.remove();
+      onConfirm();
+  });
+
+  const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+          closeModal();
+          document.removeEventListener('keydown', handleEscape);
+      }
+  };
+  document.addEventListener('keydown', handleEscape);
+}
+
 // ==================== МОДАЛКА ДОБАВЛЕНИЯ ПРОВЕДЁННОГО УРОКА ====================
-async function showAddCompletedLessonModal() {
+export async function showAddCompletedLessonModal() {
   const [groups, students] = await Promise.all([
     fetchGroupsForSelect(),
     fetchStudentsForSelect()
@@ -355,7 +409,6 @@ async function showAddCompletedLessonModal() {
     const utcDate = adjustedDate.toISOString();
     const isFree = paymentStatus === 'free';
   
-    // 1. Создаём урок
     const { data: newLesson, error: lessonError } = await supabase
       .from('lessons')
       .insert({
@@ -376,14 +429,11 @@ async function showAddCompletedLessonModal() {
       return;
     }
   
-    // 2. Обрабатываем оплату
     if (paymentStatus === 'paid' && studentId) {
-      // Находим подходящую оплату и списываем 1 урок
       const availablePayment = await findAvailablePayment(studentId, utcDate);
       if (availablePayment) {
         await linkLessonToPayment(newLesson.id, availablePayment.id);
       } else {
-        // Если нет подходящей оплаты — создаём новую
         await supabase.from('payments').insert({
           teacher_id: getCurrentUser().id,
           student_id: studentId,
@@ -392,21 +442,23 @@ async function showAddCompletedLessonModal() {
           status: 'paid',
           description: `Оплата урока ${new Date(lessonDate).toLocaleDateString()}`
         });
-        // После создания оплаты пробуем привязать ещё раз (опционально)
         const newPayment = await findAvailablePayment(studentId, utcDate);
         if (newPayment) {
           await linkLessonToPayment(newLesson.id, newPayment.id);
         }
       }
     }
-    // Для debt и free ничего не делаем
   
     modal.remove();
-    resetDashboardCache();
-    await loadAllDataFromSupabase();
-    renderStats();
-    renderUpcomingLessons();
-    renderCompletedLessons();
+resetDashboardCache();
+await loadAllDataFromSupabase();
+renderStats();
+renderUpcomingLessons();
+renderCompletedLessons();
+
+// 👇 ДОБАВЬ ЭТУ СТРОКУ
+if (window.updateAllLessonsTable) {
+    await window.updateAllLessonsTable(); }
   });
 }
 
@@ -507,22 +559,28 @@ export async function openLessonModal(lessonId) {
     btn.addEventListener('click', () => modal.remove());
   });
 
-  modal.querySelector('#deleteLessonBtn').addEventListener('click', async () => {
-    if (!confirm('Удалить урок безвозвратно?')) return;
-    
-    const { error } = await supabase.from('lessons').delete().eq('id', lessonId);
+  modal.querySelector('#deleteLessonBtn').addEventListener('click', () => {
+    showConfirmModal(
+      'Удалить урок безвозвратно?',
+      async () => {
+        const { error } = await supabase.from('lessons').delete().eq('id', lessonId);
+        if (error) {
+          alert(`Ошибка удаления: ${error.message}`);
+          return;
+        }
+        modal.remove();
+        resetDashboardCache();
+        await loadAllDataFromSupabase();
+        renderStats();
+        renderUpcomingLessons();
+        renderCompletedLessons();
 
-    if (error) {
-      alert(`Ошибка удаления: ${error.message}`);
-      return;
-    }
-
-    modal.remove();
-    resetDashboardCache();
-    await loadAllDataFromSupabase();
-    renderStats();
-    renderUpcomingLessons();
-    renderCompletedLessons();
+        // 👇 Обновляем страницу "Все уроки", если она открыта
+        if (window.updateAllLessonsTable) {
+            await window.updateAllLessonsTable();
+        }
+      }
+    );
   });
 
   modal.querySelector('#lessonEditForm').addEventListener('submit', async (e) => {
@@ -546,7 +604,6 @@ export async function openLessonModal(lessonId) {
     const utcDate = adjustedDate.toISOString();
     const isFree = paymentStatus === 'free';
 
-    // 1. Обновляем основные поля урока
     const { error: updateError } = await supabase
         .from('lessons')
         .update({
@@ -563,16 +620,13 @@ export async function openLessonModal(lessonId) {
         return;
     }
 
-    // 2. Обрабатываем статус оплаты
     try {
         if (paymentStatus !== 'auto') {
-            // Отвязываем от старой оплаты, если была
             if (lesson.payment_id) {
                 await unlinkLessonFromPayment(lessonId, lesson.payment_id);
             }
             await supabase.from('lessons').update({ payment_id: null }).eq('id', lessonId);
         } else {
-            // Авто
             await supabase.from('lessons').update({ is_free: false }).eq('id', lessonId);
             
             if (status === 'completed' && studentId) {
@@ -593,7 +647,6 @@ export async function openLessonModal(lessonId) {
         }
     } catch (err) {
         console.warn('Ошибка обработки оплаты:', err);
-        // Не блокируем сохранение
     }
   
     modal.remove();
@@ -607,5 +660,5 @@ export async function openLessonModal(lessonId) {
     if (window.updateAllLessonsTable) {
         await window.updateAllLessonsTable();
     }
-});
+  });
 }

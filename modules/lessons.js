@@ -6,6 +6,8 @@ import { fetchStudentsForSelect } from './students.js';
 import { fetchGroupsForSelect } from './groups.js';
 // 👇 НОВЫЙ ИМПОРТ: Статически импортируем функцию открытия модалки
 import { openLessonModal } from './dashboard.js';
+import { showConfirmModal } from './dashboard.js';
+import { showAddCompletedLessonModal } from './dashboard.js';
 
 let allLessons = [];
 let studentsList = [];
@@ -97,8 +99,12 @@ function renderTable() {
   tbody.innerHTML = filtered.map(l => {
     const name = l.student_groups?.group_name || l.students?.child_name || '—';
     const date = new Date(l.lesson_date).toLocaleString('ru-RU', {
-      day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'
-    });
+      timeZone: 'UTC',
+      day: 'numeric',
+      month: 'long',
+      hour: '2-digit',
+      minute: '2-digit'
+  });
     const statusText = {
       'planned': 'Запланирован',
       'completed': 'Проведён',
@@ -141,24 +147,27 @@ async function editLesson(lessonId) {
 }
 
 async function deleteLesson(lessonId) {
-  if (!confirm('Удалить урок?')) return;
-  
-  const { error } = await supabase
-    .from('lessons')
-    .delete()
-    .eq('id', lessonId);
-    
-  if (error) {
-    alert('Ошибка удаления: ' + error.message);
-    return;
-  }
-  
-  allLessons = allLessons.filter(l => l.id !== lessonId);
-  renderTable();
+  showConfirmModal(
+    'Удалить урок безвозвратно?',
+    async () => {
+      const { error } = await supabase
+        .from('lessons')
+        .delete()
+        .eq('id', lessonId);
+        
+      if (error) {
+        alert('Ошибка удаления: ' + error.message);
+        return;
+      }
+      
+      allLessons = allLessons.filter(l => l.id !== lessonId);
+      renderTable();
+    }
+  );
 }
 
+
 async function showAddLessonModal() {
-  const { showAddCompletedLessonModal } = await import('./dashboard.js');
   showAddCompletedLessonModal();
 }
 
