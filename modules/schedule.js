@@ -31,6 +31,7 @@ function initializeCalendar(calendarEl) {
   const isMobile = window.innerWidth < 768;
   const calendarHeight = isMobile ? 500 : 650;
   calendar = new FullCalendar.Calendar(calendarEl, {
+    timeZone: 'UTC',
     initialView: 'dayGridMonth',
     height: calendarHeight,
     contentHeight: 'auto',
@@ -79,11 +80,13 @@ async function fetchAndFormatEvents(fetchInfo, successCallback, failureCallback)
       if (lesson.topic) titleParts.push(`(${lesson.topic})`);
       return {
         id: lesson.id,
-        title: titleParts.join(' '),
-        start: lesson.lesson_date,
-        end: new Date(new Date(lesson.lesson_date).getTime() + 60 * 60 * 1000).toISOString(),
-        backgroundColor: getStatusColor(lesson.status),
-        borderColor: getStatusColor(lesson.status),
+    title: titleParts.join(' '),
+    start: lesson.lesson_date,
+    end: new Date(new Date(lesson.lesson_date).getTime() + 60 * 60 * 1000).toISOString(),
+    allDay: false,
+    display: 'block',
+    backgroundColor: getStatusColor(lesson.status),
+    borderColor: getStatusColor(lesson.status),
         extendedProps: { groupId: lesson.group_id, studentId: lesson.student_id, topic: lesson.topic, status: lesson.status, notes: lesson.notes }
       };
     });
