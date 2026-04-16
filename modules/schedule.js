@@ -229,7 +229,8 @@ async function saveLesson(e) {
   const notes = document.getElementById('lessonNotes').value.trim() || null;
   if (!lessonDate) { showError('lessonFormError', 'Выберите дату и время.'); return; }
   const localDate = new Date(lessonDate);
-  const utcDate = localDate.toISOString();
+const adjustedDate = new Date(localDate.getTime() - (localDate.getTimezoneOffset() * 60000));
+const utcDate = adjustedDate.toISOString();
   const lessonData = { teacher_id: getCurrentUser().id, lesson_date: utcDate, topic, status, notes };
   if (!editingLessonId) {
     const typeSelect = document.getElementById('lessonTypeSelect');
@@ -249,7 +250,24 @@ async function saveLesson(e) {
   } else {
     res = await supabase.from('lessons').insert(lessonData);
   }
-  if (res.error) { showError('lessonFormError', `Ошибка: ${res.error.message}`); return; }
+  if (res.error) {
+    showError('lessonFormError', `Ошибка: ${res.error.message}`);
+    return;
+}
+
+// === НОВОЕ: УМНОЕ СПИСАНИЕ ОПЛАТЫ ===
+// Если урок завершён и привязан к конкретному ученику (не к группе)
+if (status === 'completed' && lessonData.student_id) {
+    const { findAvailablePayment, linkLessonToPayment } = await import('./payment-utils.js');
+    const availablePayment = await findAvailablePayment(lessonData.student_id, utcDate);
+    if (availablePayment) {
+        // Получаем ID только что созданного/обновлённого урока
+        const lessonId = editingLessonId || res.data?.id;
+        if (lessonId) {
+            await linkLessonToPayment(lessonId, availablePayment.id);
+        }
+    }
+}
   document.getElementById('lessonFormContainer').classList.add('hidden');
   editingLessonId = null;
   if (calendar) calendar.refetchEvents();

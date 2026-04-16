@@ -31,9 +31,11 @@ export async function initStudentsPage() {
 async function loadStudentsTable() {
   const tbody = document.getElementById('studentsTableBody');
   if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="6">Загрузка...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="7">Загрузка...</td></tr>';
+  
   try {
-    const { data, error } = await supabase
+    // 1. Загружаем учеников
+    const { data: students, error: studentsError } = await supabase
       .from('students')
       .select(`
         id, child_name, parent_name, phone_number, child_age, group_id, status, parent_pain,
@@ -41,12 +43,41 @@ async function loadStudentsTable() {
       `)
       .eq('teacher_id', getCurrentUser().id)
       .order('child_name');
-    if (error) throw error;
-    cachedStudentsData = data || [];
+      
+    if (studentsError) throw studentsError;
+    if (!students?.length) {
+      tbody.innerHTML = '<tr><td colspan="7">Нет учеников</td></tr>';
+      return;
+    }
+
+    // 2. Загружаем все оплаты и завершённые уроки для этих учеников
+    const studentIds = students.map(s => s.id);
+    
+    const [{ data: payments }, { data: completedLessons }] = await Promise.all([
+      supabase.from('payments').select('student_id, lessons_paid, lessons_used').in('student_id', studentIds).eq('status', 'paid'),
+      supabase.from('lessons').select('student_id').in('student_id', studentIds).eq('status', 'completed')
+    ]);
+
+    // 3. Считаем баланс для каждого ученика
+    const balanceMap = new Map();
+    
+    students.forEach(s => {
+      const studentPayments = (payments || []).filter(p => p.student_id === s.id);
+      const totalPaid = studentPayments.reduce((sum, p) => sum + (p.lessons_paid || 0), 0);
+      const totalUsed = (completedLessons || []).filter(l => l.student_id === s.id).length;
+      balanceMap.set(s.id, totalPaid - totalUsed);
+    });
+
+    cachedStudentsData = students.map(s => ({
+      ...s,
+      balance: balanceMap.get(s.id) || 0
+    }));
+    
     renderTableFromData(cachedStudentsData);
+    
   } catch (error) {
     console.error(error);
-    tbody.innerHTML = `<tr><td colspan="6">Ошибка: ${error.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7">Ошибка: ${error.message}</td></tr>`;
   }
 }
 
@@ -59,13 +90,17 @@ function renderTableFromData(data) {
   const tbody = document.getElementById('studentsTableBody');
   if (!tbody) return;
   if (!data?.length) {
-    tbody.innerHTML = '<tr><td colspan="6">Нет учеников</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7">Нет учеников</td></tr>';
     return;
   }
+  
   tbody.innerHTML = data.map(s => {
     const groupName = s.student_groups?.group_name || '—';
     const statusClass = s.status === 'active' ? 'badge active' : 'badge inactive';
     const statusText = s.status === 'active' ? 'Активен' : 'Неактивен';
+    const balance = s.balance || 0;
+    const balanceColor = balance > 0 ? '#2C4C3B' : (balance < 0 ? '#d32f2f' : 'inherit');
+    
     return `
       <tr>
         <td>${s.child_name}</td>
@@ -73,6 +108,9 @@ function renderTableFromData(data) {
         <td>${s.phone_number || '—'}</td>
         <td>${groupName}</td>
         <td><span class="${statusClass}">${statusText}</span></td>
+        <td style="font-weight: bold; color: ${balanceColor};">
+          ${balance > 0 ? '+' : ''}${balance} урок(ов)
+        </td>
         <td>
           <button class="btn-icon open-student" data-id="${s.id}" title="Открыть"><i class="fas fa-eye"></i></button>
           <button class="btn-icon edit-student" data-id="${s.id}" title="Редактировать"><i class="fas fa-edit"></i></button>
@@ -81,6 +119,7 @@ function renderTableFromData(data) {
       </tr>
     `;
   }).join('');
+  
   document.querySelectorAll('.open-student').forEach(btn => btn.addEventListener('click', () => openStudentCard(btn.dataset.id)));
   document.querySelectorAll('.edit-student').forEach(btn => btn.addEventListener('click', () => loadAndEditStudent(btn.dataset.id)));
   document.querySelectorAll('.delete-student').forEach(btn => btn.addEventListener('click', () => deleteStudentById(btn.dataset.id)));
@@ -180,6 +219,7 @@ async function deleteStudentById(id) {
 
 // ==================== КАРТОЧКА УЧЕНИКА ====================
 export async function openStudentCard(studentId) {
+  
   document.querySelector('.modal.student-card')?.remove();
   const { data: student, error } = await supabase
     .from('students')
@@ -188,12 +228,16 @@ export async function openStudentCard(studentId) {
     .single();
   if (error) return alert('Ученик не найден');
 
-  const [{ data: payments }, { data: lessons }] = await Promise.all([
+  
+  const [{ data: payments }, { data: lessons }, { data: usedPayments }] = await Promise.all([
     supabase.from('payments').select('*').eq('student_id', studentId).order('payment_date', { ascending: false }),
-    supabase.from('lessons').select('*').eq('student_id', studentId).order('lesson_date', { ascending: false })
+    supabase.from('lessons').select('*').eq('student_id', studentId).order('lesson_date', { ascending: false }),
+    supabase.from('payments').select('id, payment_date, amount, lessons_paid, lessons_used').eq('student_id', studentId).eq('status', 'paid')
   ]);
+  
   const paymentsData = payments || [];
   const lessonsData = lessons || [];
+  const usedPaymentsData = usedPayments || [];
   const totalPaidLessons = paymentsData.reduce((sum, p) => sum + (p.lessons_paid || 0), 0);
 
   const modal = document.createElement('div');
@@ -217,7 +261,7 @@ export async function openStudentCard(studentId) {
         ${await renderPaymentsTab(studentId, paymentsData, totalPaidLessons)}
       </div>
       <div class="tab-content" id="studentLessonsTab">
-        ${renderLessonsTab(lessonsData)}
+        ${renderLessonsTab(lessonsData, usedPaymentsData)}
       </div>
       <div class="tab-content active" id="studentReportTab">
         ${await renderReportTab(student, lessonsData, paymentsData)}
@@ -306,10 +350,10 @@ export async function openStudentCard(studentId) {
 ${getTeacherProfile()?.teacher_name || 'Ваш преподаватель'}
 SimpleEd CRM`;
 
-previewDiv.innerHTML = reportText
-.split('\n\n')
-.map(block => `<p>${block.replace(/\n/g, '<br>')}</p>`)
-.join('');
+    previewDiv.innerHTML = reportText
+      .split('\n\n')
+      .map(block => `<p>${block.replace(/\n/g, '<br>')}</p>`)
+      .join('');
   }
 
   modal.querySelector('#generateReportBtn')?.addEventListener('click', updateReport);
@@ -424,6 +468,10 @@ previewDiv.innerHTML = reportText
     loadAndEditStudent(studentId);
     document.getElementById('studentFormContainer').classList.remove('hidden');
   });
+
+  // Внутри openStudentCard, после загрузки данных:
+await syncUnlinkedLessons(studentId, lessonsData);
+
 }
 
 function renderStudentInfo(student) {
@@ -470,15 +518,46 @@ async function renderPaymentsTab(studentId, payments, totalPaidLessons) {
   return html;
 }
 
-function renderLessonsTab(lessons) {
-  let html = `<div style="padding:1rem;"><table style="width:100%;"><thead><tr><th>Дата</th><th>Тема</th><th>Статус</th><th>Присутствие</th><th>Заметки</th></tr></thead><tbody>`;
+function formatDate(dateString) {
+  if (!dateString) return '—';
+  return new Date(dateString).toLocaleDateString('ru-RU');
+}
+
+function renderLessonsTab(lessons, payments) {
+  let html = `<div style="padding:1rem;"><table style="width:100%;"><thead><tr>
+    <th>Дата</th><th>Тема</th><th>Статус</th><th>Списание</th><th>Заметки</th>
+  </tr></thead><tbody>`;
+  
   if (lessons && lessons.length) {
     lessons.forEach(l => {
+      let spentInfo = '';
+      let spentClass = '';
+      
+      if (l.is_free) {
+        spentInfo = '🎁 Бесплатный';
+        spentClass = 'free-lesson';
+      } else if (l.payment_id) {
+        const usedPayment = payments.find(p => p.id === l.payment_id);
+        if (usedPayment) {
+          const remaining = (usedPayment.lessons_paid || 0) - (usedPayment.lessons_used || 0);
+          spentInfo = `✅ ${formatDate(usedPayment.payment_date)} (ост. ${remaining})`;
+          spentClass = 'paid-lesson';
+        } else {
+          spentInfo = '⚠️ Долг';
+          spentClass = 'debt-lesson';
+        }
+      } else if (l.status === 'completed') {
+        spentInfo = '⚠️ Долг';
+        spentClass = 'debt-lesson';
+      } else {
+        spentInfo = '—';
+      }
+      
       html += `<tr>
         <td>${new Date(l.lesson_date).toLocaleString('ru-RU')}</td>
         <td>${l.topic || '—'}</td>
         <td>${l.status || '—'}</td>
-        <td>${l.attended ? '✅' : '❌'}</td>
+        <td class="${spentClass}">${spentInfo}</td>
         <td>${l.notes || '—'}</td>
       </tr>`;
     });
@@ -585,4 +664,24 @@ async function showPaymentForm(studentId, parentModal) {
 export async function fetchStudentsForSelect() {
   const { data } = await supabase.from('students').select('id, child_name').eq('teacher_id', getCurrentUser().id).order('child_name');
   return data || [];
+}
+
+
+
+async function syncUnlinkedLessons(studentId, lessons) {
+  const unlinkedCompletedLessons = lessons.filter(l => 
+      l.status === 'completed' && !l.payment_id
+  );
+  
+  if (unlinkedCompletedLessons.length === 0) return;
+  
+  const { findAvailablePayment, linkLessonToPayment } = await import('./payment-utils.js');
+  
+  for (const lesson of unlinkedCompletedLessons) {
+      const payment = await findAvailablePayment(studentId, lesson.lesson_date);
+      if (payment) {
+          await linkLessonToPayment(lesson.id, payment.id);
+          lesson.payment_id = payment.id;
+      }
+  }
 }

@@ -329,17 +329,48 @@ function openScheduleLessonModal(groupId, groupName) {
     const notes = modal.querySelector('#lessonNotes').value.trim() || null;
     const errDiv = modal.querySelector('#quickLessonFormError');
     if (!date) { errDiv.textContent = 'Выберите дату'; return; }
-    const localDate = new Date(date);
-    const utcDate = localDate.toISOString();
+    // Создаём дату с учётом локального часового пояса
+const localDate = new Date(lessonDate);
+// Корректируем на смещение часового пояса
+const offset = localDate.getTimezoneOffset();
+const adjustedDate = new Date(localDate.getTime() - (offset * 60 * 1000));
+const utcDate = adjustedDate.toISOString();
     try {
-      await supabase.from('lessons').insert({
-        teacher_id: getCurrentUser().id,
-        group_id: groupId,
-        lesson_date: utcDate,
-        topic,
-        notes,
-        status: 'planned'
-      });
+      // 1. Вставляем урок
+      const { data: newLesson, error } = await supabase
+          .from('lessons')
+          .insert({
+              teacher_id: getCurrentUser().id,
+              group_id: groupId,
+              lesson_date: utcDate,
+              topic,
+              notes,
+              status: 'planned' // или сразу completed, если отмечаем проведённым
+          })
+          .select('id')
+          .single();
+      
+      if (error) throw error;
+  
+      // === НОВОЕ: СПИСАНИЕ ОПЛАТ У ВСЕХ УЧЕНИКОВ ГРУППЫ ===
+      // Если урок создаётся сразу как проведённый (completed)
+      if (status === 'completed') {
+          const { findAvailablePayment, linkLessonToPayment } = await import('./payment-utils.js');
+          
+          // Получаем всех учеников этой группы
+          const { data: groupStudents } = await supabase
+              .from('students')
+              .select('id')
+              .eq('group_id', groupId);
+          
+          // Для каждого ученика пытаемся найти оплату и списать урок
+          for (const student of (groupStudents || [])) {
+              const payment = await findAvailablePayment(student.id, utcDate);
+              if (payment) {
+                  await linkLessonToPayment(newLesson.id, payment.id);
+              }
+          }
+      }
       modal.remove();
       resetGroupsCache();
       await fetchGroupsFull();

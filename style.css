@@ -1176,3 +1176,6 @@ details .report-preview-content {
     border-radius: 8px !important;
 }
 
+.free-lesson { color: #8B7E6C; font-style: italic; }
+.paid-lesson { color: #2C4C3B; font-weight: 500; }
+.debt-lesson { color: #d32f2f; font-weight: 500; }

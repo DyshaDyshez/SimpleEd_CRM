@@ -4,6 +4,8 @@ import { getCurrentUser } from './auth.js';
 import { renderPage } from './ui.js';
 import { fetchStudentsForSelect } from './students.js';
 import { fetchGroupsForSelect } from './groups.js';
+// 👇 НОВЫЙ ИМПОРТ: Статически импортируем функцию открытия модалки
+import { openLessonModal } from './dashboard.js';
 
 let allLessons = [];
 let studentsList = [];
@@ -23,7 +25,7 @@ export async function initLessonsPage() {
   bindEvents();
 
   // В конце файла, после initLessonsPage:
-window.updateAllLessonsTable = async function() {
+  window.updateAllLessonsTable = async function() {
     await loadData();
     renderTable();
   };
@@ -131,10 +133,12 @@ function renderTable() {
   });
 }
 
+// 👇 ИЗМЕНЁННАЯ ФУНКЦИЯ: Теперь использует статический импорт и передает ID
 async function editLesson(lessonId) {
-    const { openLessonModal } = await import('./dashboard.js');
+    // Нам больше не нужен динамический импорт, мы импортировали функцию сверху
+    // const { openLessonModal } = await import('./dashboard.js');
     openLessonModal(lessonId);
-  }
+}
 
 async function deleteLesson(lessonId) {
   if (!confirm('Удалить урок?')) return;
@@ -177,5 +181,3 @@ export function resetLessonsCache() {
   lessonsLoaded = false;
   allLessons = [];
 }
-
-

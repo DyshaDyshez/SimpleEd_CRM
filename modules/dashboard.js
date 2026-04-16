@@ -3,11 +3,12 @@ import supabase from './supabaseClient.js';
 import { getCurrentUser } from './auth.js';
 import { fetchGroupsForSelect } from './groups.js';
 import { fetchStudentsForSelect } from './students.js';
+import { findAvailablePayment, linkLessonToPayment, unlinkLessonFromPayment } from './payment-utils.js';
 
 // --- КЭШ ДАННЫХ ДЛЯ ДАШБОРДА ---
-let cachedStats = null;          // { totalLessons, totalEarnings }
-let cachedUpcoming = null;       // массив ближайших уроков
-let cachedCompleted = null;      // массив проведённых уроков
+let cachedStats = null;
+let cachedUpcoming = null;
+let cachedCompleted = null;
 let dashboardLoaded = false;
 
 // ==================== ИНИЦИАЛИЗАЦИЯ ГЛАВНОЙ ====================
@@ -29,7 +30,6 @@ export async function initDashboard() {
 // ==================== ЗАГРУЗКА ВСЕХ ДАННЫХ ИЗ SUPABASE ====================
 async function loadAllDataFromSupabase() {
   try {
-    // Статистика
     const [lessonsCountRes, paymentsRes] = await Promise.all([
       supabase.from('lessons').select('*', { count: 'exact', head: true })
         .eq('teacher_id', getCurrentUser().id)
@@ -43,7 +43,6 @@ async function loadAllDataFromSupabase() {
       totalEarnings: paymentsRes.data ? paymentsRes.data.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0) : 0
     };
 
-    // === БЛИЖАЙШИЕ УРОКИ (неделя или 5 ближайших) ===
     const now = new Date();
     const nextWeek = new Date(now);
     nextWeek.setDate(now.getDate() + 7);
@@ -64,7 +63,6 @@ async function loadAllDataFromSupabase() {
       .lte('lesson_date', nextWeekISO)
       .order('lesson_date', { ascending: true });
 
-    // Если на неделе пусто — берём 5 ближайших
     if (!upcoming || upcoming.length === 0) {
       const res = await supabase
         .from('lessons')
@@ -82,7 +80,6 @@ async function loadAllDataFromSupabase() {
     }
     cachedUpcoming = upcoming || [];
 
-    // === ПРОВЕДЁННЫЕ УРОКИ (7 дней или 5 последних) ===
     const weekAgo = new Date(now);
     weekAgo.setDate(now.getDate() - 7);
     const weekAgoISO = weekAgo.toISOString();
@@ -90,7 +87,7 @@ async function loadAllDataFromSupabase() {
     let { data: completed } = await supabase
       .from('lessons')
       .select(`
-        id, lesson_date, topic, notes, group_id, student_id,
+        id, lesson_date, topic, notes, group_id, student_id, payment_id, is_free,
         student_groups ( group_name ),
         students ( child_name )
       `)
@@ -100,12 +97,11 @@ async function loadAllDataFromSupabase() {
       .lte('lesson_date', nowISO)
       .order('lesson_date', { ascending: false });
 
-    // Если за неделю пусто — берём 5 последних
     if (!completed || completed.length === 0) {
       const res = await supabase
         .from('lessons')
         .select(`
-          id, lesson_date, topic, notes, group_id, student_id,
+          id, lesson_date, topic, notes, group_id, student_id, payment_id, is_free,
           student_groups ( group_name ),
           students ( child_name )
         `)
@@ -139,7 +135,11 @@ function renderUpcomingLessons() {
   container.innerHTML = cachedUpcoming.map(l => {
     const name = l.student_groups?.group_name || l.students?.child_name || 'Урок';
     const date = new Date(l.lesson_date).toLocaleString('ru-RU', {
-      day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'
+      timeZone: 'UTC',
+      day: 'numeric',
+      month: 'long',
+      hour: '2-digit',
+      minute: '2-digit'
     });
     return `
       <div class="lesson-item" data-lesson-id="${l.id}">
@@ -152,7 +152,6 @@ function renderUpcomingLessons() {
     `;
   }).join('');
 
-  // Добавляем обработчики клика
   container.querySelectorAll('.lesson-item').forEach(el => {
     el.addEventListener('click', () => openLessonModal(el.dataset.lessonId));
   });
@@ -168,7 +167,11 @@ function renderCompletedLessons() {
   container.innerHTML = cachedCompleted.map(l => {
     const name = l.student_groups?.group_name || l.students?.child_name || 'Урок';
     const date = new Date(l.lesson_date).toLocaleString('ru-RU', {
-      day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'
+      timeZone: 'UTC',
+      day: 'numeric',
+      month: 'long',
+      hour: '2-digit',
+      minute: '2-digit'
     });
     const notes = l.notes ? `<small>${l.notes.substring(0, 50)}${l.notes.length > 50 ? '…' : ''}</small>` : '';
     return `
@@ -183,13 +186,11 @@ function renderCompletedLessons() {
     `;
   }).join('');
 
-  // Добавляем обработчики клика
   container.querySelectorAll('.lesson-item').forEach(el => {
     el.addEventListener('click', () => openLessonModal(el.dataset.lessonId));
   });
 }
 
-// ==================== СБРОС КЭША ====================
 export function resetDashboardCache() {
   dashboardLoaded = false;
   cachedStats = null;
@@ -258,10 +259,12 @@ async function showAddCompletedLessonModal() {
           <textarea id="lessonNotes" rows="3" placeholder="Что прошли, что задано..."></textarea>
         </div>
         <div class="form-group">
-          <label>
-            <input type="checkbox" id="lessonPaid"> Урок оплачен (списать 1 урок с баланса)
-          </label>
-          <small class="text-muted">Если отмечено, будет создан платёж на 1 урок</small>
+          <label>Статус оплаты</label>
+            <select id="lessonPaymentStatus">
+          <option value="debt" selected>⚠️ Долг</option>
+          <option value="free">🎁 Бесплатный</option>
+          <option value="paid">✅ Оплачен (списать 1 урок)</option>
+            </select>
         </div>
         <div class="modal-actions">
           <button type="submit" class="btn btn-success">Сохранить</button>
@@ -319,18 +322,18 @@ async function showAddCompletedLessonModal() {
     e.preventDefault();
     const errorDiv = modal.querySelector('#completedLessonError');
     errorDiv.textContent = '';
-
+  
     const type = typeSelect.value;
     const lessonDate = modal.querySelector('#lessonDate').value;
     const topic = modal.querySelector('#lessonTopic').value.trim() || null;
     const notes = modal.querySelector('#lessonNotes').value.trim() || null;
-    const isPaid = modal.querySelector('#lessonPaid').checked;
-
+    const paymentStatus = modal.querySelector('#lessonPaymentStatus').value;
+  
     if (!lessonDate) {
       errorDiv.textContent = 'Выберите дату и время';
       return;
     }
-
+  
     let groupId = null;
     let studentId = null;
     if (type === 'group') {
@@ -346,10 +349,13 @@ async function showAddCompletedLessonModal() {
         return;
       }
     }
-
+  
     const localDate = new Date(lessonDate);
-    const utcDate = localDate.toISOString();
-
+    const adjustedDate = new Date(localDate.getTime() - (localDate.getTimezoneOffset() * 60000));
+    const utcDate = adjustedDate.toISOString();
+    const isFree = paymentStatus === 'free';
+  
+    // 1. Создаём урок
     const { data: newLesson, error: lessonError } = await supabase
       .from('lessons')
       .insert({
@@ -359,20 +365,26 @@ async function showAddCompletedLessonModal() {
         lesson_date: utcDate,
         topic,
         notes,
-        status: 'completed'
+        status: 'completed',
+        is_free: isFree
       })
       .select('id')
       .single();
-
+  
     if (lessonError) {
       errorDiv.textContent = `Ошибка создания урока: ${lessonError.message}`;
       return;
     }
-
-    if (isPaid && studentId) {
-      const { error: paymentError } = await supabase
-        .from('payments')
-        .insert({
+  
+    // 2. Обрабатываем оплату
+    if (paymentStatus === 'paid' && studentId) {
+      // Находим подходящую оплату и списываем 1 урок
+      const availablePayment = await findAvailablePayment(studentId, utcDate);
+      if (availablePayment) {
+        await linkLessonToPayment(newLesson.id, availablePayment.id);
+      } else {
+        // Если нет подходящей оплаты — создаём новую
+        await supabase.from('payments').insert({
           teacher_id: getCurrentUser().id,
           student_id: studentId,
           lessons_paid: 1,
@@ -380,11 +392,16 @@ async function showAddCompletedLessonModal() {
           status: 'paid',
           description: `Оплата урока ${new Date(lessonDate).toLocaleDateString()}`
         });
-      if (paymentError) console.error('Ошибка создания платежа:', paymentError);
+        // После создания оплаты пробуем привязать ещё раз (опционально)
+        const newPayment = await findAvailablePayment(studentId, utcDate);
+        if (newPayment) {
+          await linkLessonToPayment(newLesson.id, newPayment.id);
+        }
+      }
     }
-
+    // Для debt и free ничего не делаем
+  
     modal.remove();
-    // Сбрасываем кэш и перезагружаем данные
     resetDashboardCache();
     await loadAllDataFromSupabase();
     renderStats();
@@ -395,11 +412,6 @@ async function showAddCompletedLessonModal() {
 
 // ==================== МОДАЛКА БЫСТРОГО НАЗНАЧЕНИЯ УРОКА ====================
 async function showQuickAssignLessonModal() {
-  const { openScheduleLessonModal } = await import('./groups.js');
-  // Поскольку у нас нет контекста конкретной группы, показываем универсальную форму
-  // Можно открыть модалку из расписания или создать упрощённую
-  const { initSchedulePage } = await import('./schedule.js');
-  // Переходим на страницу расписания и открываем форму
   document.querySelector('[data-page="schedule"]')?.click();
   setTimeout(() => {
     document.getElementById('assignLessonBtn')?.click();
@@ -411,15 +423,12 @@ function bindDashboardEvents() {
   document.getElementById('quickAssignLessonBtn')?.addEventListener('click', showQuickAssignLessonModal);
 }
 
-
-// ==================== МОДАЛКА ПРОСМОТРА/РЕДАКТИРОВАНИЯ УРОКА ====================
+// ==================== МОДАЛКА РЕДАКТИРОВАНИЯ УРОКА ====================
 export async function openLessonModal(lessonId) {
-  // Находим урок в кэше
   let lesson = cachedUpcoming?.find(l => l.id === lessonId) || 
                cachedCompleted?.find(l => l.id === lessonId);
   
   if (!lesson) {
-    // Если нет в кэше, пробуем загрузить
     const { data, error } = await supabase
       .from('lessons')
       .select(`
@@ -436,6 +445,8 @@ export async function openLessonModal(lessonId) {
     lesson = data;
   }
 
+  const studentId = lesson.student_id;
+
   const modal = document.createElement('div');
   modal.className = 'modal lesson-edit-modal';
   modal.innerHTML = `
@@ -451,7 +462,7 @@ export async function openLessonModal(lessonId) {
         </div>
         <div class="form-group">
           <label>Дата и время</label>
-          <input type="datetime-local" id="editLessonDate" value="${new Date(lesson.lesson_date).toISOString().slice(0, 16)}" required>
+          <input type="datetime-local" id="editLessonDate" value="${lesson.lesson_date.slice(0, 16)}" required>
         </div>
         <div class="form-group">
           <label>Тема</label>
@@ -466,9 +477,12 @@ export async function openLessonModal(lessonId) {
           </select>
         </div>
         <div class="form-group">
-          <label>
-            <input type="checkbox" id="editLessonAttended" ${lesson.attended ? 'checked' : ''}> Ученик присутствовал
-          </label>
+          <label>Статус оплаты</label>
+          <select id="editPaymentStatus">
+            <option value="auto" ${!lesson.is_free && lesson.payment_id ? 'selected' : ''}>Авто (из оплат)</option>
+            <option value="free" ${lesson.is_free ? 'selected' : ''}>🎁 Бесплатный</option>
+            <option value="debt" ${!lesson.is_free && !lesson.payment_id ? 'selected' : ''}>⚠️ Долг</option>
+          </select>
         </div>
         <div class="form-group">
           <label>Заметки</label>
@@ -493,14 +507,10 @@ export async function openLessonModal(lessonId) {
     btn.addEventListener('click', () => modal.remove());
   });
 
-  // Обработчик удаления
   modal.querySelector('#deleteLessonBtn').addEventListener('click', async () => {
     if (!confirm('Удалить урок безвозвратно?')) return;
     
-    const { error } = await supabase
-      .from('lessons')
-      .delete()
-      .eq('id', lessonId);
+    const { error } = await supabase.from('lessons').delete().eq('id', lessonId);
 
     if (error) {
       alert(`Ошибка удаления: ${error.message}`);
@@ -508,7 +518,6 @@ export async function openLessonModal(lessonId) {
     }
 
     modal.remove();
-    // Сбрасываем кэш и перезагружаем дашборд
     resetDashboardCache();
     await loadAllDataFromSupabase();
     renderStats();
@@ -524,50 +533,79 @@ export async function openLessonModal(lessonId) {
     const lessonDate = modal.querySelector('#editLessonDate').value;
     const topic = modal.querySelector('#editLessonTopic').value.trim() || null;
     const status = modal.querySelector('#editLessonStatus').value;
-    const attended = modal.querySelector('#editLessonAttended').checked;
     const notes = modal.querySelector('#editLessonNotes').value.trim() || null;
+    const paymentStatus = modal.querySelector('#editPaymentStatus').value;
   
     if (!lessonDate) {
-      errorDiv.textContent = 'Выберите дату и время';
-      return;
+        errorDiv.textContent = 'Выберите дату и время';
+        return;
     }
   
     const localDate = new Date(lessonDate);
-    const utcDate = localDate.toISOString();
-  
-    const { error } = await supabase
-      .from('lessons')
-      .update({
-        lesson_date: utcDate,
-        topic,
-        status,
-        attended,
-        notes
-      })
-      .eq('id', lessonId);
-  
-    if (error) {
-      errorDiv.textContent = `Ошибка сохранения: ${error.message}`;
-      return;
+    const adjustedDate = new Date(localDate.getTime() - (localDate.getTimezoneOffset() * 60000));
+    const utcDate = adjustedDate.toISOString();
+    const isFree = paymentStatus === 'free';
+
+    // 1. Обновляем основные поля урока
+    const { error: updateError } = await supabase
+        .from('lessons')
+        .update({
+            lesson_date: utcDate,
+            topic,
+            status,
+            notes,
+            is_free: isFree
+        })
+        .eq('id', lessonId);
+
+    if (updateError) {
+        errorDiv.textContent = `Ошибка сохранения: ${updateError.message}`;
+        return;
+    }
+
+    // 2. Обрабатываем статус оплаты
+    try {
+        if (paymentStatus !== 'auto') {
+            // Отвязываем от старой оплаты, если была
+            if (lesson.payment_id) {
+                await unlinkLessonFromPayment(lessonId, lesson.payment_id);
+            }
+            await supabase.from('lessons').update({ payment_id: null }).eq('id', lessonId);
+        } else {
+            // Авто
+            await supabase.from('lessons').update({ is_free: false }).eq('id', lessonId);
+            
+            if (status === 'completed' && studentId) {
+                const availablePayment = await findAvailablePayment(studentId, utcDate);
+                if (availablePayment) {
+                    if (lesson.payment_id && lesson.payment_id !== availablePayment.id) {
+                        await unlinkLessonFromPayment(lessonId, lesson.payment_id);
+                    }
+                    await linkLessonToPayment(lessonId, availablePayment.id);
+                } else {
+                    if (lesson.payment_id) {
+                        await unlinkLessonFromPayment(lessonId, lesson.payment_id);
+                    }
+                }
+            } else if (status !== 'completed' && lesson.payment_id) {
+                await unlinkLessonFromPayment(lessonId, lesson.payment_id);
+            }
+        }
+    } catch (err) {
+        console.warn('Ошибка обработки оплаты:', err);
+        // Не блокируем сохранение
     }
   
     modal.remove();
     
-    // Сбрасываем кэш дашборда
     resetDashboardCache();
     await loadAllDataFromSupabase();
     renderStats();
     renderUpcomingLessons();
     renderCompletedLessons();
     
-    // Уведомляем страницу "Все уроки" об обновлении
     if (window.updateAllLessonsTable) {
-      await window.updateAllLessonsTable();
+        await window.updateAllLessonsTable();
     }
-  });
-
-
-
-
-  
+});
 }
