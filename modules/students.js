@@ -643,17 +643,50 @@ async function showPaymentReminderModal(student, lessons) {
   modal.querySelector('#copyReminderBtn').addEventListener('click', () => { navigator.clipboard.writeText(textarea.value); alert('Сообщение скопировано!'); });
   modal.querySelector('#generateAIMessageBtn').addEventListener('click', async () => {
     const btn = modal.querySelector('#generateAIMessageBtn');
-    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Генерация...';
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Генерация...';
+    
     try {
-      const response = await fetch('https://yyohojhvayfcwiqrdiqf.supabase.co/functions/v1/super-function', {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': CONFIG.SUPABASE_ANON_KEY, 'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}` },
-        body: JSON.stringify({ action: 'payment_reminder', student: { child_name: student.child_name }, stats: { completed: completedLessons.length }, topics: topics, nextTopics: nextTopicsInput.value || 'новые темы' })
+      const completed = lessons.filter(l => l.status === 'completed' || l.attended === true);
+      const topicsStr = completed.slice(-5).map(l => l.topic || 'без темы').join(', ');
+      const nextTopicsStr = nextTopicsInput?.value || 'новые темы';
+      
+      console.log('Отправка запроса на генерацию напоминания:', {
+        action: 'payment_reminder',
+        student: { child_name: student.child_name },
+        stats: { completed: completed.length },
+        topics: topicsStr,
+        nextTopics: nextTopicsStr
       });
+      
+      const response = await fetch('https://yyohojhvayfcwiqrdiqf.supabase.co/functions/v1/super-function', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': CONFIG.SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({
+          action: 'payment_reminder',
+          student: { child_name: student.child_name },
+          stats: { completed: completed.length },
+          topics: topicsStr,
+          nextTopics: nextTopicsStr
+        })
+      });
+      
       const data = await response.json();
+      console.log('Ответ от Edge Function:', data);
+      
       if (data.error) throw new Error(data.error);
-      textarea.value = data.message;
-    } catch (err) { alert('Не удалось сгенерировать сообщение'); }
-    finally { btn.disabled = false; btn.innerHTML = '<i class="fas fa-robot"></i> ✨ Сгенерировать с ИИ'; }
+      textarea.value = data.message || data.recommendations;
+    } catch (err) {
+      console.error('Ошибка генерации:', err);
+      alert('Не удалось сгенерировать сообщение: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-robot"></i> ✨ Сгенерировать с ИИ';
+    }
   });
 }
 
