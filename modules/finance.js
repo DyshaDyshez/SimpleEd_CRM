@@ -10,6 +10,56 @@ let studentsList = [];
 let groupsList = [];
 let financeLoaded = false;
 
+
+// ==================== КАСТОМНОЕ ОКНО ПОДТВЕРЖДЕНИЯ ====================
+function showConfirmModal(message, onConfirm, onCancel = () => {}) {
+  document.querySelector('.modal.confirm-modal')?.remove();
+
+  const modal = document.createElement('div');
+  modal.className = 'modal confirm-modal';
+  modal.innerHTML = `
+      <div class="modal-card" style="max-width: 400px; text-align: center;">
+          <div class="modal-header">
+              <h3>Подтверждение</h3>
+              <button class="close-modal">&times;</button>
+          </div>
+          <div class="modal-body" style="padding: 1.5rem 1rem;">
+              <p style="font-size: 1.1rem; margin-bottom: 1.5rem;">${message}</p>
+              <div class="modal-actions" style="justify-content: center; gap: 1rem;">
+                  <button class="btn btn-danger" id="confirmYesBtn">Да, удалить</button>
+                  <button class="btn btn-secondary" id="confirmNoBtn">Отмена</button>
+              </div>
+          </div>
+      </div>
+  `;
+  document.body.appendChild(modal);
+
+  const closeModal = () => {
+      modal.remove();
+      onCancel();
+  };
+
+  modal.querySelector('.close-modal').addEventListener('click', closeModal);
+  modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+  });
+  modal.querySelector('#confirmNoBtn').addEventListener('click', closeModal);
+  modal.querySelector('#confirmYesBtn').addEventListener('click', () => {
+      modal.remove();
+      onConfirm();
+  });
+
+  const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+          closeModal();
+          document.removeEventListener('keydown', handleEscape);
+      }
+  };
+  document.addEventListener('keydown', handleEscape);
+}
+
+
+
 export async function initFinancePage() {
   renderPage('finance');
   if (!financeLoaded) {
@@ -88,6 +138,7 @@ function renderTable(payments) {
       </td>
     </tr>`;
   }).join('');
+  
   tbody.querySelectorAll('.edit-payment').forEach(btn => btn.addEventListener('click', () => editPayment(btn.dataset.id)));
   tbody.querySelectorAll('.delete-payment').forEach(btn => btn.addEventListener('click', () => deletePayment(btn.dataset.id)));
 }
@@ -162,6 +213,7 @@ function showPaymentForm(payment = null) {
     if (res.error) { errorDiv.textContent = res.error.message; return; }
     modal.remove();
     await loadPayments();
+    refreshRelatedPages(); // 👈 добавлено обновление связанных страниц
   });
 }
 
@@ -172,10 +224,56 @@ async function editPayment(id) {
 }
 
 async function deletePayment(id) {
-  if (!confirm('Удалить платёж?')) return;
-  const { error } = await supabase.from('payments').delete().eq('id', id);
-  if (error) alert(error.message);
-  else await loadPayments();
+  showConfirmModal(
+      'Удалить платёж? Все привязанные уроки станут неоплаченными.',
+      async () => {
+          console.log('Удаляем платёж с ID:', id);
+          
+          try {
+              const { error } = await supabase
+                  .from('payments')
+                  .delete()
+                  .eq('id', id);
+              
+              if (error) {
+                  console.error('Ошибка удаления:', error);
+                  alert(`Не удалось удалить: ${error.message}`);
+                  return;
+              }
+              
+              console.log('Платёж удалён из базы');
+              await loadPayments();
+              refreshRelatedPages();
+              alert('Платёж удалён');
+              
+          } catch (err) {
+              console.error('Критическая ошибка:', err);
+              alert('Не удалось удалить платёж');
+          }
+      }
+  );
+}
+
+// 👇 НОВАЯ ФУНКЦИЯ: обновляет кэш и таблицы на других страницах
+function refreshRelatedPages() {
+  // Обновляем страницу "Все уроки"
+  if (typeof window.updateAllLessonsTable === 'function') {
+    window.updateAllLessonsTable();
+  }
+  // Сбрасываем кэш учеников
+  if (typeof window.resetStudentsCache === 'function') {
+    window.resetStudentsCache();
+  }
+  // Сбрасываем кэш групп
+  if (typeof window.resetGroupsCache === 'function') {
+    window.resetGroupsCache();
+  }
+  // Если открыта страница учеников — перерисовываем её
+  if (document.getElementById('studentsTableBody')) {
+    import('./students.js').then(m => {
+      if (m.initStudentsPage) m.initStudentsPage();
+    }).catch(() => {});
+  }
 }
 
 function bindEvents() {

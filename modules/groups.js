@@ -132,6 +132,16 @@ async function deleteGroupById(id) {
   resetGroupsCache();
   await fetchGroupsFull();
   renderGroupsView();
+  // Сбрасываем кэш групп
+if (typeof window.resetGroupsCache === 'function') {
+  window.resetGroupsCache();
+}
+// Обновляем страницу учеников (могут измениться группы у учеников)
+if (typeof window.resetStudentsCache === 'function') {
+  window.resetStudentsCache();
+}
+// Обновляем таблицу уроков
+if (window.updateAllLessonsTable) window.updateAllLessonsTable();
 }
 
 // ==================== ПОЛНАЯ КАРТОЧКА ГРУППЫ ====================
@@ -301,90 +311,17 @@ async function showAddStudentModal(groupId, parentModal) {
 }
 
 // ==================== НАЗНАЧЕНИЕ УРОКА ====================
+import { openLessonForm } from './lessonForm.js';
+
+// Вместо openScheduleLessonModal:
 function openScheduleLessonModal(groupId, groupName) {
-  if (document.querySelector('.modal.schedule-lesson')) return;
-  const modal = document.createElement('div');
-  modal.className = 'modal schedule-lesson';
-  modal.innerHTML = `
-    <div class="modal-card">
-      <h3>Назначить урок для "${groupName}"</h3>
-      <form id="quickLessonForm">
-        <div class="form-group"><label>Дата и время *</label><input type="datetime-local" id="lessonDate" required></div>
-        <div class="form-group"><label>Тема</label><input id="lessonTopic" placeholder="Например: Уравнения"></div>
-        <div class="form-group"><label>Заметки</label><textarea id="lessonNotes" rows="2"></textarea></div>
-        <div id="quickLessonFormError" class="error-message"></div>
-        <div class="modal-actions">
-          <button type="submit" class="btn btn-success">Создать</button>
-          <button type="button" class="btn btn-secondary close-modal">Отмена</button>
-        </div>
-      </form>
-    </div>
-  `;
-  document.body.appendChild(modal);
-  modal.querySelector('.close-modal').addEventListener('click', () => modal.remove());
-  modal.querySelector('#quickLessonForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const date = modal.querySelector('#lessonDate').value;
-    const topic = modal.querySelector('#lessonTopic').value.trim() || null;
-    const notes = modal.querySelector('#lessonNotes').value.trim() || null;
-    const errDiv = modal.querySelector('#quickLessonFormError');
-    if (!date) { errDiv.textContent = 'Выберите дату'; return; }
-    // Создаём дату с учётом локального часового пояса
-const localDate = new Date(lessonDate);
-// Корректируем на смещение часового пояса
-const offset = localDate.getTimezoneOffset();
-const adjustedDate = new Date(localDate.getTime() - (offset * 60 * 1000));
-const utcDate = adjustedDate.toISOString();
-    try {
-      // 1. Вставляем урок
-      const { data: newLesson, error } = await supabase
-          .from('lessons')
-          .insert({
-              teacher_id: getCurrentUser().id,
-              group_id: groupId,
-              lesson_date: utcDate,
-              topic,
-              notes,
-              status: 'planned' // или сразу completed, если отмечаем проведённым
-          })
-          .select('id')
-          .single();
-      
-      if (error) throw error;
-  
-      // === НОВОЕ: СПИСАНИЕ ОПЛАТ У ВСЕХ УЧЕНИКОВ ГРУППЫ ===
-      // Если урок создаётся сразу как проведённый (completed)
-      if (status === 'completed') {
-          const { findAvailablePayment, linkLessonToPayment } = await import('./payment-utils.js');
-          
-          // Получаем всех учеников этой группы
-          const { data: groupStudents } = await supabase
-              .from('students')
-              .select('id')
-              .eq('group_id', groupId);
-          
-          // Для каждого ученика пытаемся найти оплату и списать урок
-          for (const student of (groupStudents || [])) {
-              const payment = await findAvailablePayment(student.id, utcDate);
-              if (payment) {
-                  await linkLessonToPayment(newLesson.id, payment.id);
-              }
-          }
-      }
-      modal.remove();
-      resetGroupsCache();
-      await fetchGroupsFull();
-      renderGroupsView();
-      const openModal = document.querySelector('.modal.group-full-details');
-      if (openModal) {
-        const updated = groupsList.find(g => g.id === groupId);
-        if (updated) {
-          populateLessonsTab(openModal, updated);
-          populateGroupLessonsTab(openModal, updated);
+    openLessonForm({
+        prefillGroupId: groupId,
+        onSuccess: () => {
+            fetchGroupsFull();
+            renderGroupsView();
         }
-      }
-    } catch (err) { errDiv.textContent = err.message; }
-  });
+    });
 }
 
 // ==================== СОЗДАНИЕ ГРУППЫ ====================

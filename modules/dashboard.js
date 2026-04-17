@@ -476,189 +476,22 @@ function bindDashboardEvents() {
 }
 
 // ==================== МОДАЛКА РЕДАКТИРОВАНИЯ УРОКА ====================
+import { openLessonForm } from './lessonForm.js';
+
+// Вместо openLessonModal:
 export async function openLessonModal(lessonId) {
-  let lesson = cachedUpcoming?.find(l => l.id === lessonId) || 
-               cachedCompleted?.find(l => l.id === lessonId);
-  
-  if (!lesson) {
-    const { data, error } = await supabase
-      .from('lessons')
-      .select(`
-        *,
-        student_groups ( group_name ),
-        students ( child_name )
-      `)
-      .eq('id', lessonId)
-      .single();
-    if (error) {
-      alert('Урок не найден');
-      return;
-    }
-    lesson = data;
-  }
-
-  const studentId = lesson.student_id;
-
-  const modal = document.createElement('div');
-  modal.className = 'modal lesson-edit-modal';
-  modal.innerHTML = `
-    <div class="modal-card" style="max-width: 500px;">
-      <div class="modal-header">
-        <h3>Редактирование урока</h3>
-        <button class="close-modal">&times;</button>
-      </div>
-      <form id="lessonEditForm">
-        <div class="form-group">
-          <label>Ученик/Группа</label>
-          <input type="text" value="${lesson.student_groups?.group_name || lesson.students?.child_name || '—'}" disabled>
-        </div>
-        <div class="form-group">
-          <label>Дата и время</label>
-          <input type="datetime-local" id="editLessonDate" value="${lesson.lesson_date.slice(0, 16)}" required>
-        </div>
-        <div class="form-group">
-          <label>Тема</label>
-          <input type="text" id="editLessonTopic" value="${lesson.topic || ''}">
-        </div>
-        <div class="form-group">
-          <label>Статус</label>
-          <select id="editLessonStatus">
-            <option value="planned" ${lesson.status === 'planned' ? 'selected' : ''}>Запланирован</option>
-            <option value="completed" ${lesson.status === 'completed' ? 'selected' : ''}>Проведён</option>
-            <option value="cancelled" ${lesson.status === 'cancelled' ? 'selected' : ''}>Отменён</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Статус оплаты</label>
-          <select id="editPaymentStatus">
-            <option value="auto" ${!lesson.is_free && lesson.payment_id ? 'selected' : ''}>Авто (из оплат)</option>
-            <option value="free" ${lesson.is_free ? 'selected' : ''}>🎁 Бесплатный</option>
-            <option value="debt" ${!lesson.is_free && !lesson.payment_id ? 'selected' : ''}>⚠️ Долг</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Заметки</label>
-          <textarea id="editLessonNotes" rows="3">${lesson.notes || ''}</textarea>
-        </div>
-        <div class="modal-actions" style="justify-content: space-between;">
-          <button type="button" class="btn btn-danger" id="deleteLessonBtn">
-            <i class="fas fa-trash"></i> Удалить
-          </button>
-          <div style="display: flex; gap: 0.5rem;">
-            <button type="submit" class="btn btn-success">Сохранить</button>
-            <button type="button" class="btn btn-secondary close-modal">Отмена</button>
-          </div>
-        </div>
-        <div id="lessonEditError" class="error-message"></div>
-      </form>
-    </div>
-  `;
-  document.body.appendChild(modal);
-
-  modal.querySelectorAll('.close-modal').forEach(btn => {
-    btn.addEventListener('click', () => modal.remove());
-  });
-
-  modal.querySelector('#deleteLessonBtn').addEventListener('click', () => {
-    showConfirmModal(
-      'Удалить урок безвозвратно?',
-      async () => {
-        const { error } = await supabase.from('lessons').delete().eq('id', lessonId);
-        if (error) {
-          alert(`Ошибка удаления: ${error.message}`);
-          return;
+    openLessonForm({
+        lessonId,
+        onSuccess: () => {
+            resetDashboardCache();
+            loadAllDataFromSupabase().then(() => {
+                renderStats();
+                renderUpcomingLessons();
+                renderCompletedLessons();
+                if (window.updateAllLessonsTable) window.updateAllLessonsTable();
+            });
         }
-        modal.remove();
-        resetDashboardCache();
-        await loadAllDataFromSupabase();
-        renderStats();
-        renderUpcomingLessons();
-        renderCompletedLessons();
-
-        // 👇 Обновляем страницу "Все уроки", если она открыта
-        if (window.updateAllLessonsTable) {
-            await window.updateAllLessonsTable();
-        }
-      }
-    );
-  });
-
-  modal.querySelector('#lessonEditForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const errorDiv = modal.querySelector('#lessonEditError');
-    errorDiv.textContent = '';
-  
-    const lessonDate = modal.querySelector('#editLessonDate').value;
-    const topic = modal.querySelector('#editLessonTopic').value.trim() || null;
-    const status = modal.querySelector('#editLessonStatus').value;
-    const notes = modal.querySelector('#editLessonNotes').value.trim() || null;
-    const paymentStatus = modal.querySelector('#editPaymentStatus').value;
-  
-    if (!lessonDate) {
-        errorDiv.textContent = 'Выберите дату и время';
-        return;
-    }
-  
-    const localDate = new Date(lessonDate);
-    const adjustedDate = new Date(localDate.getTime() - (localDate.getTimezoneOffset() * 60000));
-    const utcDate = adjustedDate.toISOString();
-    const isFree = paymentStatus === 'free';
-
-    const { error: updateError } = await supabase
-        .from('lessons')
-        .update({
-            lesson_date: utcDate,
-            topic,
-            status,
-            notes,
-            is_free: isFree
-        })
-        .eq('id', lessonId);
-
-    if (updateError) {
-        errorDiv.textContent = `Ошибка сохранения: ${updateError.message}`;
-        return;
-    }
-
-    try {
-        if (paymentStatus !== 'auto') {
-            if (lesson.payment_id) {
-                await unlinkLessonFromPayment(lessonId, lesson.payment_id);
-            }
-            await supabase.from('lessons').update({ payment_id: null }).eq('id', lessonId);
-        } else {
-            await supabase.from('lessons').update({ is_free: false }).eq('id', lessonId);
-            
-            if (status === 'completed' && studentId) {
-                const availablePayment = await findAvailablePayment(studentId, utcDate);
-                if (availablePayment) {
-                    if (lesson.payment_id && lesson.payment_id !== availablePayment.id) {
-                        await unlinkLessonFromPayment(lessonId, lesson.payment_id);
-                    }
-                    await linkLessonToPayment(lessonId, availablePayment.id);
-                } else {
-                    if (lesson.payment_id) {
-                        await unlinkLessonFromPayment(lessonId, lesson.payment_id);
-                    }
-                }
-            } else if (status !== 'completed' && lesson.payment_id) {
-                await unlinkLessonFromPayment(lessonId, lesson.payment_id);
-            }
-        }
-    } catch (err) {
-        console.warn('Ошибка обработки оплаты:', err);
-    }
-  
-    modal.remove();
-    
-    resetDashboardCache();
-    await loadAllDataFromSupabase();
-    renderStats();
-    renderUpcomingLessons();
-    renderCompletedLessons();
-    
-    if (window.updateAllLessonsTable) {
-        await window.updateAllLessonsTable();
-    }
-  });
+    });
 }
+
+// Вместо showAddCompletedLessonModal (можно оставить, но теперь она может просто вызывать openLessonForm с status='completed')

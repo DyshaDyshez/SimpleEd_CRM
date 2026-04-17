@@ -34,7 +34,6 @@ async function loadStudentsTable() {
   tbody.innerHTML = '<tr><td colspan="7">Загрузка...</td></tr>';
   
   try {
-    // 1. Загружаем учеников
     const { data: students, error: studentsError } = await supabase
       .from('students')
       .select(`
@@ -50,21 +49,26 @@ async function loadStudentsTable() {
       return;
     }
 
-    // 2. Загружаем все оплаты и завершённые уроки для этих учеников
     const studentIds = students.map(s => s.id);
-    
+
     const [{ data: payments }, { data: completedLessons }] = await Promise.all([
-      supabase.from('payments').select('student_id, lessons_paid, lessons_used').in('student_id', studentIds).eq('status', 'paid'),
-      supabase.from('lessons').select('student_id').in('student_id', studentIds).eq('status', 'completed')
+      supabase.from('payments')
+        .select('student_id, lessons_paid, lessons_used, status')
+        .in('student_id', studentIds)
+        .eq('status', 'paid'),
+      supabase.from('lessons')
+        .select('student_id, payment_id')
+        .in('student_id', studentIds)
+        .eq('status', 'completed')
     ]);
 
-    // 3. Считаем баланс для каждого ученика
     const balanceMap = new Map();
     
     students.forEach(s => {
       const studentPayments = (payments || []).filter(p => p.student_id === s.id);
       const totalPaid = studentPayments.reduce((sum, p) => sum + (p.lessons_paid || 0), 0);
-      const totalUsed = (completedLessons || []).filter(l => l.student_id === s.id).length;
+      const studentLessons = (completedLessons || []).filter(l => l.student_id === s.id);
+      const totalUsed = studentLessons.filter(l => l.payment_id).length;
       balanceMap.set(s.id, totalPaid - totalUsed);
     });
 
@@ -196,7 +200,8 @@ async function saveStudent(e) {
   document.getElementById('studentFormContainer').classList.add('hidden');
   editingStudentId = null;
   resetStudentsCache();
-  await loadStudentsTable();
+if (window.updateAllLessonsTable) window.updateAllLessonsTable();
+resetDashboardCache?.(); // если влияет на дашборд
 }
 
 async function loadAndEditStudent(id) {
@@ -214,12 +219,12 @@ async function deleteStudentById(id) {
   else {
     resetStudentsCache();
     await loadStudentsTable();
+    if (window.updateAllLessonsTable) window.updateAllLessonsTable();
   }
 }
 
 // ==================== КАРТОЧКА УЧЕНИКА ====================
 export async function openStudentCard(studentId) {
-  
   document.querySelector('.modal.student-card')?.remove();
   const { data: student, error } = await supabase
     .from('students')
@@ -228,7 +233,6 @@ export async function openStudentCard(studentId) {
     .single();
   if (error) return alert('Ученик не найден');
 
-  
   const [{ data: payments }, { data: lessons }, { data: usedPayments }] = await Promise.all([
     supabase.from('payments').select('*').eq('student_id', studentId).order('payment_date', { ascending: false }),
     supabase.from('lessons').select('*').eq('student_id', studentId).order('lesson_date', { ascending: false }),
@@ -239,13 +243,15 @@ export async function openStudentCard(studentId) {
   const lessonsData = lessons || [];
   const usedPaymentsData = usedPayments || [];
   const totalPaidLessons = paymentsData.reduce((sum, p) => sum + (p.lessons_paid || 0), 0);
+  const completedLessons = lessonsData.filter(l => l.status === 'completed' || l.attended === true).length;
+  const balance = totalPaidLessons - completedLessons;
 
   const modal = document.createElement('div');
   modal.className = 'modal student-card';
   modal.innerHTML = `
     <div class="modal-card" style="max-width: 750px;">
       <div class="modal-header">
-        <h2>${student.child_name}</h2>
+        <h2>${student.child_name} ${balance === 1 ? '⚠️ Остался 1 урок' : ''}</h2>
         <button class="close-modal">&times;</button>
       </div>
       <div class="tabs">
@@ -255,7 +261,7 @@ export async function openStudentCard(studentId) {
         <button class="tab active" data-tab="report">Отчёт</button>
       </div>
       <div class="tab-content" id="studentInfoTab">
-        ${renderStudentInfo(student)}
+        ${renderStudentInfo(student, balance)}
       </div>
       <div class="tab-content" id="studentPaymentsTab">
         ${await renderPaymentsTab(studentId, paymentsData, totalPaidLessons)}
@@ -270,7 +276,6 @@ export async function openStudentCard(studentId) {
   `;
   document.body.appendChild(modal);
 
-  // Переключение вкладок
   modal.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
       modal.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -284,7 +289,6 @@ export async function openStudentCard(studentId) {
   modal.querySelector('.close-modal').addEventListener('click', () => modal.remove());
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 
-  // Обработчики для вкладки "Отчёт"
   const startInput = modal.querySelector('#reportStartDate');
   const endInput = modal.querySelector('#reportEndDate');
   const previewDiv = modal.querySelector('#reportPreview');
@@ -350,15 +354,11 @@ export async function openStudentCard(studentId) {
 ${getTeacherProfile()?.teacher_name || 'Ваш преподаватель'}
 SimpleEd CRM`;
 
-    previewDiv.innerHTML = reportText
-      .split('\n\n')
-      .map(block => `<p>${block.replace(/\n/g, '<br>')}</p>`)
-      .join('');
+    previewDiv.innerHTML = reportText.split('\n\n').map(block => `<p>${block.replace(/\n/g, '<br>')}</p>`).join('');
   }
 
   modal.querySelector('#generateReportBtn')?.addEventListener('click', updateReport);
 
-  // Быстрые фильтры
   modal.querySelectorAll('.quick-period').forEach(btn => {
     btn.addEventListener('click', () => {
       const period = btn.dataset.period;
@@ -469,12 +469,20 @@ SimpleEd CRM`;
     document.getElementById('studentFormContainer').classList.remove('hidden');
   });
 
-  // Внутри openStudentCard, после загрузки данных:
-await syncUnlinkedLessons(studentId, lessonsData);
+  // Кнопка "Напомнить об оплате"
+  if (balance === 1) {
+    const remindBtn = document.createElement('button');
+    remindBtn.className = 'btn btn-warning btn-sm';
+    remindBtn.style.marginLeft = '1rem';
+    remindBtn.innerHTML = '<i class="fas fa-bell"></i> Напомнить об оплате';
+    remindBtn.addEventListener('click', () => showPaymentReminderModal(student, lessonsData));
+    modal.querySelector('.modal-header').appendChild(remindBtn);
+  }
 
+  await syncUnlinkedLessons(studentId, lessonsData);
 }
 
-function renderStudentInfo(student) {
+function renderStudentInfo(student, balance) {
   return `
     <div style="padding: 1rem;">
       <p><strong>Возраст:</strong> ${student.child_age || '—'}</p>
@@ -483,6 +491,7 @@ function renderStudentInfo(student) {
       <p><strong>Группа:</strong> ${student.student_groups?.group_name || '—'}</p>
       <p><strong>Статус:</strong> ${student.status === 'active' ? 'Активен' : 'Неактивен'}</p>
       <p><strong>Заметка:</strong> ${student.parent_pain || '—'}</p>
+      ${balance === 1 ? '<p style="color: #d32f2f;"><i class="fas fa-exclamation-triangle"></i> Остался всего 1 оплаченный урок!</p>' : ''}
       <button class="btn btn-primary btn-sm" id="editStudentFromCard"><i class="fas fa-edit"></i> Редактировать</button>
     </div>
   `;
@@ -658,6 +667,95 @@ async function showPaymentForm(studentId, parentModal) {
     modal.remove();
     parentModal.remove();
     openStudentCard(studentId);
+    if (window.updateAllLessonsTable) window.updateAllLessonsTable();
+  });
+}
+
+// ==================== НАПОМИНАНИЕ ОБ ОПЛАТЕ ====================
+async function showPaymentReminderModal(student, lessons) {
+  const completedLessons = lessons.filter(l => l.status === 'completed' || l.attended === true);
+  const lastLessons = completedLessons.slice(-5);
+  const topics = lastLessons.map(l => l.topic || 'без темы').join(', ');
+  
+  const modal = document.createElement('div');
+  modal.className = 'modal payment-reminder-modal';
+  modal.innerHTML = `
+    <div class="modal-card" style="max-width: 600px;">
+      <div class="modal-header">
+        <h3>📨 Напоминание об оплате</h3>
+        <button class="close-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p><strong>Ученик:</strong> ${student.child_name}</p>
+        <p><strong>Проведено уроков:</strong> ${completedLessons.length}</p>
+        <p><strong>Последние темы:</strong> ${topics || '—'}</p>
+        
+        <div class="form-group">
+          <label>Ближайшие темы для изучения (можно редактировать):</label>
+          <input type="text" id="nextTopics" placeholder="Например: Present Perfect, неправильные глаголы" style="width: 100%;">
+        </div>
+        
+        <div class="form-group">
+          <label>Сообщение родителю:</label>
+          <textarea id="reminderMessage" rows="6" style="width: 100%;">Здравствуйте! У ${student.child_name} остался всего 1 оплаченный урок. Мы провели уже ${completedLessons.length} занятий, изучили темы: ${topics || 'различные темы'}. Чтобы не прерывать прогресс, пожалуйста, оплатите следующие занятия. В ближайшее время планируем изучать: [укажите темы]. Спасибо!</textarea>
+        </div>
+        
+        <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+          <button class="btn btn-primary" id="generateAIMessageBtn">
+            <i class="fas fa-robot"></i> ✨ Сгенерировать с ИИ
+          </button>
+          <button class="btn btn-success" id="copyReminderBtn">
+            <i class="fas fa-copy"></i> Копировать
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  
+  const textarea = modal.querySelector('#reminderMessage');
+  const nextTopicsInput = modal.querySelector('#nextTopics');
+  
+  modal.querySelector('.close-modal').addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+  
+  modal.querySelector('#copyReminderBtn').addEventListener('click', () => {
+    navigator.clipboard.writeText(textarea.value);
+    alert('Сообщение скопировано!');
+  });
+  
+  modal.querySelector('#generateAIMessageBtn').addEventListener('click', async () => {
+    const btn = modal.querySelector('#generateAIMessageBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Генерация...';
+    
+    try {
+      const response = await fetch('https://yyohojhvayfcwiqrdiqf.supabase.co/functions/v1/super-function', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': CONFIG.SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({
+          action: 'payment_reminder',
+          student: { child_name: student.child_name },
+          stats: { completed: completedLessons.length },
+          topics: topics,
+          nextTopics: nextTopicsInput.value || 'новые темы'
+        })
+      });
+      
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
+      textarea.value = data.message || data.recommendations;
+    } catch (err) {
+      console.error('Ошибка генерации:', err);
+      alert('Не удалось сгенерировать сообщение');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-robot"></i> ✨ Сгенерировать с ИИ';
+    }
   });
 }
 
@@ -666,22 +764,17 @@ export async function fetchStudentsForSelect() {
   return data || [];
 }
 
-
-
 async function syncUnlinkedLessons(studentId, lessons) {
-  const unlinkedCompletedLessons = lessons.filter(l => 
-      l.status === 'completed' && !l.payment_id
-  );
-  
+  const unlinkedCompletedLessons = lessons.filter(l => l.status === 'completed' && !l.payment_id);
   if (unlinkedCompletedLessons.length === 0) return;
   
   const { findAvailablePayment, linkLessonToPayment } = await import('./payment-utils.js');
   
   for (const lesson of unlinkedCompletedLessons) {
-      const payment = await findAvailablePayment(studentId, lesson.lesson_date);
-      if (payment) {
-          await linkLessonToPayment(lesson.id, payment.id);
-          lesson.payment_id = payment.id;
-      }
+    const payment = await findAvailablePayment(studentId, lesson.lesson_date);
+    if (payment) {
+      await linkLessonToPayment(lesson.id, payment.id);
+      lesson.payment_id = payment.id;
+    }
   }
 }
