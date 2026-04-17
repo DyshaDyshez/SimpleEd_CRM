@@ -17,6 +17,8 @@
   <!-- Shepherd.js для обучалки -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@11.2.0/dist/css/shepherd.css"/>
 
+  <script type="module" src="./modules/students/students-main.js"></script>
+
 
 </head>
 <body>
@@ -95,7 +97,10 @@
     <div class="card stat-card">
       <h3><i class="fas fa-chart-bar"></i> Статистика</h3>
       <div class="stat-value"><span id="totalLessonsCount">0</span> <span>уроков</span></div>
-      <div class="stat-money"><span id="totalEarnings">0</span> ₽</div>
+      <div style="display: flex; gap: 1.5rem; margin-top: 0.5rem;">
+        <div class="stat-money"><span id="totalEarningsRUB">0</span> ₽</div>
+        <div class="stat-money"><span id="totalEarningsKZT">0</span> ₸</div>
+      </div>
     </div>
 
     <!-- Ближайшие уроки -->
