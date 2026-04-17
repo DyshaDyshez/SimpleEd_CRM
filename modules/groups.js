@@ -194,6 +194,7 @@ export async function openFullGroupCard(groupId) {
 function populateStudentsTab(modal, group) {
   const container = modal.querySelector('#tabGroupStudents .students-list-full');
   const noMsg = modal.querySelector('.no-students-tab');
+  
   if (group.students.length) {
     container.innerHTML = group.students.map(s => {
       const balance = s.balance || 0;
@@ -213,25 +214,46 @@ function populateStudentsTab(modal, group) {
       `;
     }).join('');
     noMsg.style.display = 'none';
+    
+    // Открыть ученика
     container.querySelectorAll('.open-student-from-group').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const id = e.currentTarget.closest('.student-full-item').dataset.studentId;
         openStudentCard(id);
       });
     });
+    
+    // Удалить из группы
     container.querySelectorAll('.remove-student').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         const id = e.currentTarget.closest('.student-full-item').dataset.studentId;
+        
+        // Обновляем в базе
         await supabase.from('students').update({ group_id: null }).eq('id', id);
+        
+        // Обновляем локальные данные
         group.students = group.students.filter(s => s.id !== id);
+        
+        // Перерисовываем вкладку
         populateStudentsTab(modal, group);
-        resetGroupsCache(); // изменения в группе – сбрасываем кэш
+        
+        // Сбрасываем кэш
+        resetGroupsCache();
+        
+        // Обновляем карточки на странице
+        renderGroupsView();
+        
+        // Сбрасываем кэш учеников
+        if (typeof window.resetStudentsCache === 'function') {
+          window.resetStudentsCache();
+        }
       });
     });
   } else {
     container.innerHTML = '';
     noMsg.style.display = 'block';
   }
+  
   modal.querySelector('#addStudentToGroupBtn').onclick = () => showAddStudentModal(group.id, modal);
 }
 
@@ -281,10 +303,18 @@ function populateLessonsTab(modal, group) {
   modal.querySelector('#scheduleLessonInGroupBtn').onclick = () => openScheduleLessonModal(group.id, group.group_name);
 }
 
+
+
 // ==================== ДОБАВЛЕНИЕ УЧЕНИКА В ГРУППУ ====================
 async function showAddStudentModal(groupId, parentModal) {
-  const { data: students } = await supabase.from('students').select('id, child_name').eq('teacher_id', getCurrentUser().id).is('group_id', null);
+  const { data: students } = await supabase
+    .from('students')
+    .select('id, child_name')
+    .eq('teacher_id', getCurrentUser().id)
+    .is('group_id', null);
+    
   if (!students?.length) return alert('Нет свободных учеников');
+  
   const modal = document.createElement('div');
   modal.className = 'modal add-student';
   modal.innerHTML = `
@@ -298,15 +328,39 @@ async function showAddStudentModal(groupId, parentModal) {
     </div>
   `;
   document.body.appendChild(modal);
+  
   modal.querySelector('.close-modal').addEventListener('click', () => modal.remove());
+  
   modal.querySelector('#confirmAddStudent').addEventListener('click', async () => {
     const select = modal.querySelector('#studentSelect');
-    await supabase.from('students').update({ group_id: groupId }).eq('id', select.value);
+    const studentId = select.value;
+    
+    // 1. Обновляем ученика в базе
+    await supabase.from('students').update({ group_id: groupId }).eq('id', studentId);
+    
+    // 2. Закрываем модалку выбора ученика
     modal.remove();
+    
+    // 3. Закрываем родительскую модалку (карточку группы)
     parentModal.remove();
+    
+    // 4. Сбрасываем кэш и перезагружаем данные групп
     resetGroupsCache();
     await fetchGroupsFull();
-    openFullGroupCard(groupId);
+    
+    // 5. Обновляем карточки на странице групп
+    renderGroupsView();
+    
+    // 6. Открываем карточку группы заново (с обновлёнными данными)
+    // Небольшая задержка, чтобы DOM обновился
+    setTimeout(() => {
+      openFullGroupCard(groupId);
+    }, 50);
+    
+    // 7. Сбрасываем кэш учеников
+    if (typeof window.resetStudentsCache === 'function') {
+      window.resetStudentsCache();
+    }
   });
 }
 
@@ -315,13 +369,81 @@ import { openLessonForm } from './lessonForm.js';
 
 // Вместо openScheduleLessonModal:
 function openScheduleLessonModal(groupId, groupName) {
-    openLessonForm({
-        prefillGroupId: groupId,
-        onSuccess: () => {
-            fetchGroupsFull();
-            renderGroupsView();
+  if (document.querySelector('.modal.schedule-lesson')) return;
+
+  const modal = document.createElement('div');
+  modal.className = 'modal schedule-lesson';
+  modal.innerHTML = `
+    <div class="modal-card">
+      <h3>Назначить урок для "${groupName}"</h3>
+      <form id="quickLessonForm">
+        <div class="form-group"><label>Дата и время *</label><input type="datetime-local" id="lessonDate" required></div>
+        <div class="form-group"><label>Тема</label><input id="lessonTopic" placeholder="Например: Уравнения"></div>
+        <div class="form-group"><label>Заметки</label><textarea id="lessonNotes" rows="2"></textarea></div>
+        <div id="quickLessonFormError" class="error-message"></div>
+        <div class="modal-actions">
+          <button type="submit" class="btn btn-success">Создать</button>
+          <button type="button" class="btn btn-secondary close-modal">Отмена</button>
+        </div>
+      </form>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  modal.querySelector('.close-modal').addEventListener('click', () => modal.remove());
+
+  modal.querySelector('#quickLessonForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const date = modal.querySelector('#lessonDate').value;
+    const topic = modal.querySelector('#lessonTopic').value.trim() || null;
+    const notes = modal.querySelector('#lessonNotes').value.trim() || null;
+    const errDiv = modal.querySelector('#quickLessonFormError');
+    
+    if (!date) {
+      errDiv.textContent = 'Выберите дату';
+      return;
+    }
+
+    const localDate = new Date(date);
+    const adjustedDate = new Date(localDate.getTime() - (localDate.getTimezoneOffset() * 60000));
+    const utcDate = adjustedDate.toISOString();
+
+    try {
+      // Создаём урок
+      const { data: newLesson, error } = await supabase
+        .from('lessons')
+        .insert({
+          teacher_id: getCurrentUser().id,
+          group_id: groupId,
+          lesson_date: utcDate,
+          topic,
+          notes,
+          status: 'planned'
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      modal.remove();
+
+      // Обновляем кэш групп
+      await fetchGroupsFull();
+      renderGroupsView();
+
+      // Обновляем открытую карточку группы
+      const openModal = document.querySelector('.modal.group-full-details');
+      if (openModal) {
+        const updatedGroup = groupsList.find(g => g.id === groupId);
+        if (updatedGroup) {
+          populateLessonsTab(openModal, updatedGroup);
+          populateGroupLessonsTab(openModal, updatedGroup);
         }
-    });
+      }
+    } catch (err) {
+      errDiv.textContent = err.message;
+    }
+  });
 }
 
 // ==================== СОЗДАНИЕ ГРУППЫ ====================

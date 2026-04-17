@@ -1305,24 +1305,82 @@ details .report-preview-content {
     border-color: var(--primary-warm);
 }
 
-/* Кнопки выбора валюты */
-.currency-selector .currency-btn {
-    padding: 0.5rem 1.25rem;
-    font-size: 1rem;
-    border: 1px solid var(--neutral-gray);
-    background: white;
-    color: var(--text-primary);
-    transition: all 0.2s;
-}
-.currency-selector .currency-btn i {
-    margin-right: 0.25rem;
-}
-.currency-selector .currency-btn.active {
-    background: var(--primary-warm);
-    border-color: var(--primary-warm);
+.btn-info {
+    background: #5B8C6F;
     color: white;
 }
-.currency-selector .currency-btn:hover:not(.active) {
-    background: var(--neutral-light);
+.btn-info:hover {
+    background: #4A6E58;
+}
+
+.badge.archived {
+    background: var(--neutral-gray);
+    color: var(--text-secondary);
+}
+
+/* ===== УНИФИЦИРОВАННЫЕ СТИЛИ ДЛЯ ПОЛЕЙ ВЫБОРА ДАТЫ ===== */
+
+/* Поля ввода даты в фильтрах и формах */
+input[type="date"] {
+    padding: 0.6rem 0.8rem;
+    border: 1px solid var(--neutral-gray);
+    border-radius: var(--border-radius-sm);
+    background: white;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    transition: var(--transition);
+    min-width: 150px;
+}
+
+input[type="date"]:focus {
+    outline: none;
     border-color: var(--primary-warm);
+    box-shadow: 0 0 0 3px rgba(212, 163, 115, 0.15);
+}
+
+/* Убираем стандартную иконку календаря в WebKit-браузерах */
+input[type="date"]::-webkit-calendar-picker-indicator {
+    opacity: 0.6;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+}
+
+/* Для Firefox */
+input[type="date"] {
+    -moz-appearance: textfield;
+}
+
+/* Поля ввода даты в модальных окнах */
+.modal input[type="date"] {
+    width: 100%;
+    padding: 0.6rem;
+    border: 1px solid var(--neutral-gray);
+    border-radius: var(--border-radius-sm);
+    background: white;
+    font-size: 0.9rem;
+}
+
+/* Поля даты в фильтрах (компактный вид) */
+.filters input[type="date"] {
+    min-width: 140px;
+}
+
+/* На странице "Все уроки" */
+#lessonsFilterDateFrom,
+#lessonsFilterDateTo {
+    min-width: 140px;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    input[type="date"],
+    .filters input[type="date"],
+    #lessonsFilterDateFrom,
+    #lessonsFilterDateTo {
+        width: 100%;
+        min-width: auto;
+    }
 }
