@@ -1179,3 +1179,11 @@ details .report-preview-content {
 .free-lesson { color: #8B7E6C; font-style: italic; }
 .paid-lesson { color: #2C4C3B; font-weight: 500; }
 .debt-lesson { color: #d32f2f; font-weight: 500; }
+
+/* Подсветка учеников с низким балансом */
+#studentsTableBody tr[style*="FFF3E0"]:hover {
+    background: #FFE0B2 !important;
+  }
+  #studentsTableBody tr[style*="FFEBEE"]:hover {
+    background: #FFCDD2 !important;
+  }

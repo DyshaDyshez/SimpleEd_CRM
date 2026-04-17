@@ -4,6 +4,7 @@ import { renderPage } from './ui.js';
 import { getCurrentUser } from './auth.js';
 import { fetchGroupsForSelect } from './groups.js';
 import { fetchStudentsForSelect } from './students.js';
+import { isPageCached, setPageCached, resetStudentRelatedCaches } from './cache.js';
 
 let allPayments = [];
 let studentsList = [];
@@ -69,6 +70,8 @@ export async function initFinancePage() {
   renderFilters();
   await loadPayments();
   bindEvents();
+  resetStudentRelatedCaches();
+if (window.updateAllLessonsTable) window.updateAllLessonsTable();
 }
 
 async function loadData() {
