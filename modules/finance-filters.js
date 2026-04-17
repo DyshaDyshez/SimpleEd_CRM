@@ -5,6 +5,12 @@ import { getCurrentUser } from './auth.js';
 import { fetchGroupsForSelect } from './groups.js';
 import { fetchStudentsForSelect } from './students.js';
 import { isPageCached, setPageCached, resetStudentRelatedCaches } from './cache.js';
+import { 
+    applyAllFilters, 
+    resetAllFilters, 
+    renderFilterSelects,
+    getCurrentFilters 
+} from './finance-filters.js';
 
 let allPayments = [];
 let studentsList = [];
@@ -41,7 +47,7 @@ async function loadPayments() {
       student_groups ( group_name )
     `)
     .eq('teacher_id', getCurrentUser().id)
-    .order('created_at', { ascending: false }); // 👈 сортируем по дате добавления
+    .order('payment_date', { ascending: false });
     
   if (error) {
     console.error('Ошибка загрузки платежей:', error);
@@ -53,99 +59,18 @@ async function loadPayments() {
 }
 
 function renderFilters() {
-  const studentSelect = document.getElementById('filterStudent');
-  const groupSelect = document.getElementById('filterGroup');
-  const currencySelect = document.getElementById('filterCurrency');
-  
-  if (studentSelect) {
-    studentSelect.innerHTML = '<option value="">Все ученики</option>' + 
-      studentsList.map(s => `<option value="${s.id}">${s.child_name}</option>`).join('');
-  }
-  
-  if (groupSelect) {
-    groupSelect.innerHTML = '<option value="">Все группы</option>' + 
-      groupsList.map(g => `<option value="${g.id}">${g.group_name}</option>`).join('');
-  }
-  
-  if (currencySelect) {
-    currencySelect.innerHTML = `
-      <option value="">Все валюты</option>
-      <option value="RUB">₽ RUB</option>
-      <option value="KZT">₸ KZT</option>
-    `;
-  }
+  renderFilterSelects(studentsList, groupsList);
 }
 
 function applyFilters() {
-  const studentId = document.getElementById('filterStudent')?.value || '';
-  const groupId = document.getElementById('filterGroup')?.value || '';
-  const currency = document.getElementById('filterCurrency')?.value || '';
-  const dateFrom = document.getElementById('filterDateFrom')?.value || '';
-  const dateTo = document.getElementById('filterDateTo')?.value || '';
-  const status = document.getElementById('filterStatus')?.value || '';
-  const minAmount = document.getElementById('filterMinAmount')?.value || '';
-  const maxAmount = document.getElementById('filterMaxAmount')?.value || '';
-  
-  let filtered = allPayments.filter(p => {
-    if (studentId && p.student_id !== studentId) return false;
-    if (groupId && p.group_id !== groupId) return false;
-    
-    // 👇 Фильтруем по ДАТЕ ДОБАВЛЕНИЯ (created_at), а не по дате оплаты
-    if (dateFrom && p.created_at < dateFrom) return false;
-    if (dateTo && p.created_at > dateTo) return false;
-    
-    if (status && p.status !== status) return false;
-    
-    if (currency) {
-      const paymentCurrency = p.currency || p.students?.currency || 'RUB';
-      if (paymentCurrency !== currency) return false;
-    }
-    
-    if (minAmount) {
-      const amount = parseFloat(p.amount) || 0;
-      if (amount < parseFloat(minAmount)) return false;
-    }
-    
-    if (maxAmount) {
-      const amount = parseFloat(p.amount) || 0;
-      if (amount > parseFloat(maxAmount)) return false;
-    }
-    
-    return true;
-  });
-  
+  const filtered = applyAllFilters(allPayments, studentsList);
   renderTable(filtered);
   updateSummary(filtered);
 }
 
 function resetFilters() {
-  document.getElementById('filterStudent').value = '';
-  document.getElementById('filterGroup').value = '';
-  document.getElementById('filterCurrency').value = '';
-  document.getElementById('filterDateFrom').value = '';
-  document.getElementById('filterDateTo').value = '';
-  document.getElementById('filterStatus').value = '';
-  document.getElementById('filterMinAmount').value = '';
-  document.getElementById('filterMaxAmount').value = '';
+  resetAllFilters();
   applyFilters();
-}
-
-// 👇 Форматирование даты и времени
-function formatDateTime(dateString) {
-  if (!dateString) return '—';
-  const date = new Date(dateString);
-  return date.toLocaleString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-}
-
-function formatDate(dateString) {
-  if (!dateString) return '—';
-  return new Date(dateString).toLocaleDateString('ru-RU');
 }
 
 function renderTable(payments) {
@@ -153,7 +78,7 @@ function renderTable(payments) {
   if (!tbody) return;
   
   if (!payments || payments.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="11">Нет платежей</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10">Нет платежей</td></tr>';
     return;
   }
   
@@ -161,11 +86,9 @@ function renderTable(payments) {
     const period = p.period_start ? `${p.period_start} – ${p.period_end}` : '—';
     const currency = p.currency || p.students?.currency || 'RUB';
     const currencySymbol = currency === 'KZT' ? '₸' : '₽';
-    const createdAt = formatDateTime(p.created_at);
     
     return `<tr>
       <td>${p.payment_date || '—'}</td>
-      <td>${createdAt}</td>
       <td>${p.students?.child_name || '—'}</td>
       <td>${p.student_groups?.group_name || '—'}</td>
       <td>${currencySymbol}</td>
@@ -315,7 +238,7 @@ function showPaymentForm(payment = null) {
           <input type="hidden" id="paymentCurrency" value="${currentCurrency}">
         </div>
         <div class="form-group">
-          <label>Дата оплаты *</label>
+          <label>Дата *</label>
           <input type="date" id="paymentDate" value="${payment?.payment_date || ''}" required>
         </div>
         <div class="form-group">
@@ -345,12 +268,6 @@ function showPaymentForm(payment = null) {
             <option value="cancelled" ${payment?.status === 'cancelled' ? 'selected' : ''}>Отменён</option>
           </select>
         </div>
-        ${isEdit ? `
-        <div class="form-group">
-          <label>Дата добавления</label>
-          <input type="text" value="${formatDateTime(payment.created_at)}" disabled style="background: var(--neutral-light);">
-        </div>
-        ` : ''}
         <div class="modal-actions">
           <button type="submit" class="btn btn-primary">${isEdit ? 'Сохранить' : 'Добавить'}</button>
           <button type="button" class="btn btn-secondary close-modal">Отмена</button>

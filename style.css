@@ -1282,3 +1282,47 @@ details .report-preview-content {
         width: 100%;
     }
 }
+
+/* Кнопки выбора валюты */
+.currency-selector .currency-btn {
+    padding: 0.5rem 1.25rem;
+    font-size: 1rem;
+    border: 1px solid var(--neutral-gray);
+    background: white;
+    color: var(--text-primary);
+    transition: all 0.2s;
+}
+.currency-selector .currency-btn i {
+    margin-right: 0.25rem;
+}
+.currency-selector .currency-btn.active {
+    background: var(--primary-warm);
+    border-color: var(--primary-warm);
+    color: white;
+}
+.currency-selector .currency-btn:hover:not(.active) {
+    background: var(--neutral-light);
+    border-color: var(--primary-warm);
+}
+
+/* Кнопки выбора валюты */
+.currency-selector .currency-btn {
+    padding: 0.5rem 1.25rem;
+    font-size: 1rem;
+    border: 1px solid var(--neutral-gray);
+    background: white;
+    color: var(--text-primary);
+    transition: all 0.2s;
+}
+.currency-selector .currency-btn i {
+    margin-right: 0.25rem;
+}
+.currency-selector .currency-btn.active {
+    background: var(--primary-warm);
+    border-color: var(--primary-warm);
+    color: white;
+}
+.currency-selector .currency-btn:hover:not(.active) {
+    background: var(--neutral-light);
+    border-color: var(--primary-warm);
+}

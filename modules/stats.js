@@ -2,21 +2,21 @@
 import supabase from './supabaseClient.js';
 import { getCurrentUser } from './auth.js';
 import { renderPage } from './ui.js';
+import { isPageCached, setPageCached } from './cache.js';
 
 let revenueChart = null;
 let lessonsChart = null;
 let studentsChart = null;
 let groupsChart = null;
-let statsLoaded = false;
 let cachedStatsData = null;
 
 // ==================== ИНИЦИАЛИЗАЦИЯ ====================
 export async function initStatsPage() {
     renderPage('stats');
     
-    if (!statsLoaded) {
+    if (!isPageCached('stats')) {
         await loadStatsData();
-        statsLoaded = true;
+        setPageCached('stats');
     }
     renderAllStats();
     bindEvents();
@@ -34,7 +34,11 @@ async function loadStatsData() {
             studentsRes,
             groupsRes
         ] = await Promise.all([
-            supabase.from('payments').select('*').eq('teacher_id', user.id),
+            // 👇 Загружаем студентов вместе с платежами, чтобы получить currency
+            supabase.from('payments').select(`
+                *,
+                students ( currency )
+            `).eq('teacher_id', user.id),
             supabase.from('lessons').select('*').eq('teacher_id', user.id),
             supabase.from('students').select('*').eq('teacher_id', user.id),
             supabase.from('student_groups').select('*').eq('teacher_id', user.id)
@@ -53,6 +57,7 @@ async function loadStatsData() {
     }
 }
 
+// ==================== РЕНДЕРИНГ ====================
 function renderAllStats() {
     if (!cachedStatsData) return;
     
@@ -84,28 +89,52 @@ function filterDataByPeriod(data, period) {
 }
 
 function renderSummary(data) {
-    const totalRevenue = data.payments
-        .filter(p => p.status === 'paid')
-        .reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+    let totalRevenueRUB = 0;
+    let totalRevenueKZT = 0;
+    
+    data.payments.filter(p => p.status === 'paid').forEach(p => {
+        const amount = parseFloat(p.amount) || 0;
+        const currency = p.students?.currency || 'RUB';
+        
+        if (currency === 'KZT') {
+            totalRevenueKZT += amount;
+        } else {
+            totalRevenueRUB += amount;
+        }
+    });
     
     const completedLessons = data.lessons.filter(l => l.status === 'completed').length;
     const activeStudents = data.students.filter(s => s.status === 'active').length;
+    
+    const totalRevenue = totalRevenueRUB + totalRevenueKZT;
     const avgPerLesson = completedLessons > 0 ? totalRevenue / completedLessons : 0;
     
-    document.getElementById('teacherTotalRevenue').textContent = totalRevenue.toFixed(0) + ' ₽';
+    document.getElementById('teacherTotalRevenueRUB').textContent = totalRevenueRUB.toFixed(0) + ' ₽';
+    document.getElementById('teacherTotalRevenueKZT').textContent = totalRevenueKZT.toFixed(0) + ' ₸';
     document.getElementById('teacherTotalLessons').textContent = completedLessons;
     document.getElementById('teacherActiveStudents').textContent = activeStudents;
     document.getElementById('teacherAvgPerLesson').textContent = avgPerLesson.toFixed(0) + ' ₽';
 
-    // Выручка за текущий месяц
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-    const monthRevenue = data.payments
-        .filter(p => p.status === 'paid' && p.payment_date >= monthStart)
-        .reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
-    document.getElementById('teacherRevenueThisMonth').textContent = monthRevenue.toFixed(0) + ' ₽';
+    
+    let monthRevenueRUB = 0;
+    let monthRevenueKZT = 0;
+    
+    data.payments.filter(p => p.status === 'paid' && p.payment_date >= monthStart).forEach(p => {
+        const amount = parseFloat(p.amount) || 0;
+        const currency = p.students?.currency || 'RUB';
+        
+        if (currency === 'KZT') {
+            monthRevenueKZT += amount;
+        } else {
+            monthRevenueRUB += amount;
+        }
+    });
+    
+    document.getElementById('teacherRevenueThisMonthRUB').textContent = monthRevenueRUB.toFixed(0) + ' ₽';
+    document.getElementById('teacherRevenueThisMonthKZT').textContent = monthRevenueKZT.toFixed(0) + ' ₸';
 
-    // Самый активный ученик
     const studentLessons = new Map();
     data.lessons.forEach(l => {
         if (l.student_id) {
@@ -119,11 +148,11 @@ function renderSummary(data) {
     const bestStudent = data.students.find(s => s.id === bestStudentId);
     document.getElementById('teacherBestStudent').textContent = bestStudent?.child_name || '—';
 
-    // Самая прибыльная группа
     const groupRevenue = new Map();
     data.payments.filter(p => p.status === 'paid').forEach(p => {
         if (p.group_id) {
-            groupRevenue.set(p.group_id, (groupRevenue.get(p.group_id) || 0) + (parseFloat(p.amount) || 0));
+            const amount = parseFloat(p.amount) || 0;
+            groupRevenue.set(p.group_id, (groupRevenue.get(p.group_id) || 0) + amount);
         }
     });
     let bestGroupId = null, maxRevenue = 0;
@@ -136,9 +165,11 @@ function renderSummary(data) {
 
 function renderRevenueChart(data) {
     const dailyRevenue = new Map();
+    
     data.payments.filter(p => p.status === 'paid').forEach(p => {
         const date = p.payment_date;
-        dailyRevenue.set(date, (dailyRevenue.get(date) || 0) + (parseFloat(p.amount) || 0));
+        const amount = parseFloat(p.amount) || 0;
+        dailyRevenue.set(date, (dailyRevenue.get(date) || 0) + amount);
     });
 
     const sortedDates = Array.from(dailyRevenue.keys()).sort();
@@ -153,7 +184,7 @@ function renderRevenueChart(data) {
             data: {
                 labels,
                 datasets: [{
-                    label: 'Выручка (₽)',
+                    label: 'Выручка (₽ + ₸)',
                     data: chartData,
                     backgroundColor: '#D4A373',
                     borderRadius: 4
@@ -211,7 +242,8 @@ function renderStudentsChart(data) {
     data.students.forEach(s => studentNames.set(s.id, s.child_name));
     
     data.payments.filter(p => p.status === 'paid' && p.student_id).forEach(p => {
-        studentRevenue.set(p.student_id, (studentRevenue.get(p.student_id) || 0) + (parseFloat(p.amount) || 0));
+        const amount = parseFloat(p.amount) || 0;
+        studentRevenue.set(p.student_id, (studentRevenue.get(p.student_id) || 0) + amount);
     });
 
     const sorted = Array.from(studentRevenue.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5);
@@ -246,7 +278,8 @@ function renderGroupsChart(data) {
     data.groups.forEach(g => groupNames.set(g.id, g.group_name));
     
     data.payments.filter(p => p.status === 'paid' && p.group_id).forEach(p => {
-        groupRevenue.set(p.group_id, (groupRevenue.get(p.group_id) || 0) + (parseFloat(p.amount) || 0));
+        const amount = parseFloat(p.amount) || 0;
+        groupRevenue.set(p.group_id, (groupRevenue.get(p.group_id) || 0) + amount);
     });
 
     const sorted = Array.from(groupRevenue.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5);
@@ -281,7 +314,9 @@ function renderTopStudents(data) {
         studentStats.set(s.id, {
             name: s.child_name,
             lessons: 0,
-            paid: 0
+            paidRUB: 0,
+            paidKZT: 0,
+            currency: s.currency || 'RUB'
         });
     });
 
@@ -293,7 +328,15 @@ function renderTopStudents(data) {
 
     data.payments.filter(p => p.status === 'paid').forEach(p => {
         if (p.student_id && studentStats.has(p.student_id)) {
-            studentStats.get(p.student_id).paid += parseFloat(p.amount) || 0;
+            const amount = parseFloat(p.amount) || 0;
+            const currency = p.students?.currency || 'RUB';
+            const stat = studentStats.get(p.student_id);
+            
+            if (currency === 'KZT') {
+                stat.paidKZT += amount;
+            } else {
+                stat.paidRUB += amount;
+            }
         }
     });
 
@@ -304,33 +347,26 @@ function renderTopStudents(data) {
     const tbody = document.getElementById('teacherTopStudentsBody');
     if (tbody) {
         tbody.innerHTML = sorted.map((s, i) => {
-            const balance = s.paid - (s.lessons * 500); // Примерная стоимость урока
+            const paidText = s.paidRUB > 0 && s.paidKZT > 0 
+                ? `${s.paidRUB.toFixed(0)} ₽ / ${s.paidKZT.toFixed(0)} ₸`
+                : s.paidRUB > 0 
+                    ? `${s.paidRUB.toFixed(0)} ₽` 
+                    : `${s.paidKZT.toFixed(0)} ₸`;
+            
             return `
                 <tr>
                     <td>${i + 1}</td>
                     <td>${s.name}</td>
                     <td>${s.lessons}</td>
-                    <td>${s.paid.toFixed(0)} ₽</td>
-                    <td style="color: ${balance >= 0 ? '#2C4C3B' : '#d32f2f'};">${balance >= 0 ? '+' : ''}${balance.toFixed(0)} ₽</td>
+                    <td>${paidText || '—'}</td>
+                    <td>—</td>
                 </tr>
             `;
         }).join('') || '<tr><td colspan="5">Нет данных</td></tr>';
     }
 }
 
-function bindEvents() {
-    document.getElementById('refreshTeacherStatsBtn')?.addEventListener('click', async () => {
-        statsLoaded = false;
-        await initStatsPage();
-    });
-    
-    document.getElementById('teacherStatsPeriod')?.addEventListener('change', () => {
-        renderAllStats();
-    });
-    
-    document.getElementById('exportTeacherStatsBtn')?.addEventListener('click', exportStatsToCSV);
-}
-
+// ==================== ЭКСПОРТ ====================
 function exportStatsToCSV() {
     if (!cachedStatsData) return;
     
@@ -340,33 +376,16 @@ function exportStatsToCSV() {
     let csv = '=== СТАТИСТИКА ===\n';
     csv += `Период: ${period === 'all' ? 'Всё время' : period + ' дней'}\n\n`;
     
-    // Сводка
-    const totalRevenue = filtered.payments.filter(p => p.status === 'paid').reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
-    const completedLessons = filtered.lessons.filter(l => l.status === 'completed').length;
-    
-    csv += 'Общая выручка,' + totalRevenue.toFixed(0) + ' ₽\n';
-    csv += 'Проведено уроков,' + completedLessons + '\n\n';
-    
-    // Ученики
-    csv += '=== ТОП УЧЕНИКОВ ===\n';
-    csv += 'Ученик,Уроков,Оплачено\n';
-    
-    const studentLessons = new Map();
-    const studentPayments = new Map();
-    const studentNames = new Map();
-    
-    filtered.students.forEach(s => studentNames.set(s.id, s.child_name));
-    filtered.lessons.filter(l => l.status === 'completed').forEach(l => {
-        if (l.student_id) studentLessons.set(l.student_id, (studentLessons.get(l.student_id) || 0) + 1);
-    });
+    let totalRUB = 0, totalKZT = 0;
     filtered.payments.filter(p => p.status === 'paid').forEach(p => {
-        if (p.student_id) studentPayments.set(p.student_id, (studentPayments.get(p.student_id) || 0) + (parseFloat(p.amount) || 0));
+        const amount = parseFloat(p.amount) || 0;
+        if (p.students?.currency === 'KZT') totalKZT += amount;
+        else totalRUB += amount;
     });
     
-    const allStudentIds = new Set([...studentLessons.keys(), ...studentPayments.keys()]);
-    allStudentIds.forEach(id => {
-        csv += `"${studentNames.get(id) || '—'}",${studentLessons.get(id) || 0},${(studentPayments.get(id) || 0).toFixed(0)} ₽\n`;
-    });
+    csv += `Выручка (₽),${totalRUB.toFixed(0)}\n`;
+    csv += `Выручка (₸),${totalKZT.toFixed(0)}\n`;
+    csv += `Проведено уроков,${filtered.lessons.filter(l => l.status === 'completed').length}\n\n`;
     
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -377,17 +396,29 @@ function exportStatsToCSV() {
     URL.revokeObjectURL(url);
 }
 
+// ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
+function bindEvents() {
+    document.getElementById('refreshTeacherStatsBtn')?.addEventListener('click', async () => {
+        setPageCached('stats', false);
+        await initStatsPage();
+    });
+    
+    document.getElementById('teacherStatsPeriod')?.addEventListener('change', () => {
+        renderAllStats();
+    });
+    
+    document.getElementById('exportTeacherStatsBtn')?.addEventListener('click', exportStatsToCSV);
+}
+
 function showLoader() {
-    const loader = document.getElementById('globalLoader');
-    if (loader) loader.classList.remove('hidden');
+    document.getElementById('globalLoader')?.classList.remove('hidden');
 }
 
 function hideLoader() {
-    const loader = document.getElementById('globalLoader');
-    if (loader) loader.classList.add('hidden');
+    document.getElementById('globalLoader')?.classList.add('hidden');
 }
 
 export function resetStatsCache() {
-    statsLoaded = false;
+    setPageCached('stats', false);
     cachedStatsData = null;
 }

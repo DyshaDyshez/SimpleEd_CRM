@@ -327,28 +327,130 @@ async function renderReminderTab(student, lessons) {
 }
 
 async function showPaymentForm(studentId, parentModal, currency) {
-  const symbol = currency==='KZT'?'₸':'₽';
-  const modal = document.createElement('div'); modal.className='modal payment-form';
-  modal.innerHTML = `<div class="modal-card"><h3>Добавить платёж (${symbol})</h3><form id="paymentForm">
-    <div class="form-group"><label>Дата *</label><input type="date" id="paymentDate" required></div>
-    <div class="form-group"><label>Сумма (${symbol})</label><input type="number" id="paymentAmount" step="0.01"></div>
-    <div class="form-group"><label>Уроков</label><input type="number" id="paymentLessons"></div>
-    <div class="form-group"><label>Период с</label><input type="date" id="periodStart"></div><div class="form-group"><label>по</label><input type="date" id="periodEnd"></div>
-    <div class="form-group"><label>Заметка</label><input id="paymentDescription"></div>
-    <div class="form-group"><label>Статус</label><select id="paymentStatus"><option value="paid">Оплачен</option><option value="cancelled">Отменён</option></select></div>
-    <div class="modal-actions"><button type="submit" class="btn btn-primary">Сохранить</button><button type="button" class="btn btn-secondary close-modal">Отмена</button></div>
-    <div id="paymentFormError" class="error-message"></div>
-  </form></div>`;
+  const currencySymbol = currency === 'KZT' ? '₸' : '₽';
+  
+  const modal = document.createElement('div');
+  modal.className = 'modal payment-form';
+  modal.innerHTML = `
+    <div class="modal-card">
+      <h3>Добавить платёж</h3>
+      <form id="paymentForm">
+        <div class="form-group">
+          <label>Валюта</label>
+          <div class="currency-selector" style="display: flex; gap: 0.5rem;">
+            <button type="button" class="btn btn-outline currency-btn ${currency === 'RUB' ? 'active' : ''}" data-currency="RUB">
+              <i class="fas fa-ruble-sign"></i> RUB
+            </button>
+            <button type="button" class="btn btn-outline currency-btn ${currency === 'KZT' ? 'active' : ''}" data-currency="KZT">
+              <i class="fas fa-tenge"></i> KZT
+            </button>
+          </div>
+          <input type="hidden" id="paymentCurrency" value="${currency}">
+        </div>
+        <div class="form-group">
+          <label>Дата *</label>
+          <input type="date" id="paymentDate" required>
+        </div>
+        <div class="form-group">
+          <label>Сумма (<span id="currencySymbol">${currencySymbol}</span>)</label>
+          <input type="number" id="paymentAmount" step="0.01">
+        </div>
+        <div class="form-group">
+          <label>Количество уроков</label>
+          <input type="number" id="paymentLessons">
+        </div>
+        <div class="form-group">
+          <label>Начало периода</label>
+          <input type="date" id="periodStart">
+        </div>
+        <div class="form-group">
+          <label>Конец периода</label>
+          <input type="date" id="periodEnd">
+        </div>
+        <div class="form-group">
+          <label>Заметка</label>
+          <input id="paymentDescription">
+        </div>
+        <div class="form-group">
+          <label>Статус</label>
+          <select id="paymentStatus">
+            <option value="paid">Оплачен</option>
+            <option value="cancelled">Отменён</option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button type="submit" class="btn btn-primary">Сохранить</button>
+          <button type="button" class="btn btn-secondary close-modal">Отмена</button>
+        </div>
+        <div id="paymentFormError" class="error-message"></div>
+      </form>
+    </div>
+  `;
   document.body.appendChild(modal);
-  modal.querySelector('.close-modal').addEventListener('click',()=>modal.remove());
-  modal.querySelector('#paymentForm').addEventListener('submit',async(e)=>{
-    e.preventDefault(); const err=modal.querySelector('#paymentFormError');
-    const amount=modal.querySelector('#paymentAmount').value, lessons=modal.querySelector('#paymentLessons').value, ps=modal.querySelector('#periodStart').value, pe=modal.querySelector('#periodEnd').value;
-    if(!amount&&!lessons&&!ps){ err.textContent='Укажите сумму, уроки или период'; return; }
-    const {error} = await supabase.from('payments').insert({teacher_id:getCurrentUser().id,student_id:studentId,payment_date:modal.querySelector('#paymentDate').value,amount:amount||null,lessons_paid:lessons?parseInt(lessons):null,period_start:ps||null,period_end:pe||null,description:modal.querySelector('#paymentDescription').value||null,status:modal.querySelector('#paymentStatus').value});
-    if(error){ err.textContent=error.message; return; }
-    modal.remove(); parentModal.remove(); openStudentCard(studentId);
-    if(window.updateAllLessonsTable) window.updateAllLessonsTable();
+  
+  const closeModal = () => modal.remove();
+  modal.querySelector('.close-modal').addEventListener('click', closeModal);
+  modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+  
+  // Логика выбора валюты
+  const currencyButtons = modal.querySelectorAll('.currency-btn');
+  const currencyHidden = modal.querySelector('#paymentCurrency');
+  const currencySpan = modal.querySelector('#currencySymbol');
+  
+  currencyButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const selectedCurrency = btn.dataset.currency;
+      
+      // Обновляем активную кнопку
+      currencyButtons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      
+      // Обновляем скрытое поле и символ
+      currencyHidden.value = selectedCurrency;
+      currencySpan.textContent = selectedCurrency === 'KZT' ? '₸' : '₽';
+    });
+  });
+  
+  modal.querySelector('#paymentForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errorDiv = modal.querySelector('#paymentFormError');
+    
+    const amount = modal.querySelector('#paymentAmount').value;
+    const lessons = modal.querySelector('#paymentLessons').value;
+    const periodStart = modal.querySelector('#periodStart').value;
+    const periodEnd = modal.querySelector('#periodEnd').value;
+    const selectedCurrency = currencyHidden.value;
+    
+    if (!amount && !lessons && !periodStart) {
+      errorDiv.textContent = 'Укажите сумму, уроки или период';
+      return;
+    }
+    
+    const paymentData = {
+      teacher_id: getCurrentUser().id,
+      student_id: studentId,
+      payment_date: modal.querySelector('#paymentDate').value,
+      amount: amount || null,
+      lessons_paid: lessons ? parseInt(lessons) : null,
+      period_start: periodStart || null,
+      period_end: periodEnd || null,
+      description: modal.querySelector('#paymentDescription').value || null,
+      status: modal.querySelector('#paymentStatus').value,
+      currency: selectedCurrency
+    };
+    
+    const { error } = await supabase.from('payments').insert(paymentData);
+    if (error) {
+      errorDiv.textContent = error.message;
+      return;
+    }
+    
+    modal.remove();
+    parentModal.remove();
+    openStudentCard(studentId);
+    
+    // Обновляем связанные страницы
+    if (window.updateAllLessonsTable) window.updateAllLessonsTable();
   });
 }
 

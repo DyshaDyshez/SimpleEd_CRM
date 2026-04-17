@@ -186,43 +186,65 @@
 
 <!-- Финансы теплейт -->
 <template id="financeTemplate">
-    <div class="form-card">
-      <div class="card-header">
-        <h2>Финансы</h2>
-        <button id="addPaymentGlobalBtn" class="btn btn-primary"><i class="fas fa-plus"></i> Добавить платёж</button>
-      </div>
-  
-      <!-- Сводка -->
-      <div class="finance-summary" id="financeSummary">
-        <div class="summary-item"><span>Всего оплат:</span> <strong id="totalCount">0</strong></div>
-        <div class="summary-item"><span>Сумма (₽):</span> <strong id="totalAmount">0</strong></div>
-        <div class="summary-item"><span>Уроков оплачено:</span> <strong id="totalLessons">0</strong></div>
-      </div>
-  
-      <!-- Фильтры -->
-      <div class="filters">
-        <select id="filterStudent"><option value="">Все ученики</option></select>
-        <select id="filterGroup"><option value="">Все группы</option></select>
-        <input type="date" id="filterDateFrom" placeholder="С даты">
-        <input type="date" id="filterDateTo" placeholder="По дату">
-        <select id="filterStatus"><option value="">Все статусы</option><option value="paid">Оплачен</option><option value="cancelled">Отменён</option></select>
-        <button id="applyFinanceFilters" class="btn btn-sm btn-primary">Применить</button>
-        <button id="resetFinanceFilters" class="btn btn-sm btn-secondary">Сбросить</button>
-      </div>
-  
-      <!-- Таблица -->
-      <div class="table-responsive">
-        <table id="financeTable">
-          <thead>
-            <tr>
-              <th>Дата</th><th>Ученик</th><th>Группа</th><th>Сумма</th><th>Уроков</th><th>Период</th><th>Заметка</th><th>Статус</th><th></th>
-            </tr>
-          </thead>
-          <tbody id="financeTableBody"></tbody>
-        </table>
-      </div>
+  <div class="form-card">
+    <div class="card-header">
+      <h2>Финансы</h2>
+      <button id="addPaymentGlobalBtn" class="btn btn-primary"><i class="fas fa-plus"></i> Добавить платёж</button>
     </div>
-  </template>
+
+    <!-- Сводка -->
+    <div class="finance-summary" id="financeSummary">
+      <div class="summary-item"><span>Всего оплат:</span> <strong id="totalCount">0</strong></div>
+      <div class="summary-item"><span>Сумма (₽):</span> <strong id="totalAmountRUB">0</strong></div>
+      <div class="summary-item"><span>Сумма (₸):</span> <strong id="totalAmountKZT">0</strong></div>
+      <div class="summary-item"><span>Уроков оплачено:</span> <strong id="totalLessons">0</strong></div>
+    </div>
+
+    <!-- Фильтры -->
+    <div class="filters">
+      <select id="filterStudent"><option value="">Все ученики</option></select>
+      <select id="filterGroup"><option value="">Все группы</option></select>
+      <select id="filterCurrency">
+        <option value="">Все валюты</option>
+        <option value="RUB">₽ RUB</option>
+        <option value="KZT">₸ KZT</option>
+      </select>
+      <input type="date" id="filterDateFrom" placeholder="Добавлено с">
+      <input type="date" id="filterDateTo" placeholder="Добавлено по">
+      <input type="number" id="filterMinAmount" placeholder="Сумма от" step="0.01" style="width: 100px;">
+      <input type="number" id="filterMaxAmount" placeholder="Сумма до" step="0.01" style="width: 100px;">
+      <select id="filterStatus">
+        <option value="">Все статусы</option>
+        <option value="paid">Оплачен</option>
+        <option value="cancelled">Отменён</option>
+      </select>
+      <button id="applyFinanceFilters" class="btn btn-sm btn-primary">Применить</button>
+      <button id="resetFinanceFilters" class="btn btn-sm btn-secondary">Сбросить</button>
+    </div>
+
+    <!-- Таблица -->
+    <div class="table-responsive">
+      <table id="financeTable">
+        <thead>
+          <tr>
+            <th>Дата оплаты</th>
+            <th>Добавлено</th>
+            <th>Ученик</th>
+            <th>Группа</th>
+            <th>Вал.</th>
+            <th>Сумма</th>
+            <th>Уроков</th>
+            <th>Период</th>
+            <th>Заметка</th>
+            <th>Статус</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="financeTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</template>
 
 
 
@@ -253,8 +275,15 @@
           <div class="stat-card-teacher highlight">
               <div class="stat-icon"><i class="fas fa-ruble-sign"></i></div>
               <div class="stat-content">
-                  <div class="stat-value" id="teacherTotalRevenue">0 ₽</div>
-                  <div class="stat-label">Общая выручка</div>
+                  <div class="stat-value" id="teacherTotalRevenueRUB">0 ₽</div>
+                  <div class="stat-label">Выручка (₽)</div>
+              </div>
+          </div>
+          <div class="stat-card-teacher highlight">
+              <div class="stat-icon"><i class="fas fa-tenge"></i></div>
+              <div class="stat-content">
+                  <div class="stat-value" id="teacherTotalRevenueKZT">0 ₸</div>
+                  <div class="stat-label">Выручка (₸)</div>
               </div>
           </div>
           <div class="stat-card-teacher">
@@ -271,13 +300,6 @@
                   <div class="stat-label">Активных учеников</div>
               </div>
           </div>
-          <div class="stat-card-teacher">
-              <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
-              <div class="stat-content">
-                  <div class="stat-value" id="teacherAvgPerLesson">0 ₽</div>
-                  <div class="stat-label">Средний чек за урок</div>
-              </div>
-          </div>
       </div>
 
       <!-- Дополнительные метрики -->
@@ -285,8 +307,15 @@
           <div class="stat-card-teacher">
               <div class="stat-icon"><i class="fas fa-calendar"></i></div>
               <div class="stat-content">
-                  <div class="stat-value" id="teacherRevenueThisMonth">0 ₽</div>
-                  <div class="stat-label">Выручка за текущий месяц</div>
+                  <div class="stat-value" id="teacherRevenueThisMonthRUB">0 ₽</div>
+                  <div class="stat-label">Выручка за месяц (₽)</div>
+              </div>
+          </div>
+          <div class="stat-card-teacher">
+              <div class="stat-icon"><i class="fas fa-calendar"></i></div>
+              <div class="stat-content">
+                  <div class="stat-value" id="teacherRevenueThisMonthKZT">0 ₸</div>
+                  <div class="stat-label">Выручка за месяц (₸)</div>
               </div>
           </div>
           <div class="stat-card-teacher">
@@ -301,6 +330,13 @@
               <div class="stat-content">
                   <div class="stat-value" id="teacherBestGroup">—</div>
                   <div class="stat-label">Самая прибыльная группа</div>
+              </div>
+          </div>
+          <div class="stat-card-teacher">
+              <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
+              <div class="stat-content">
+                  <div class="stat-value" id="teacherAvgPerLesson">0 ₽</div>
+                  <div class="stat-label">Средний чек за урок</div>
               </div>
           </div>
       </div>
@@ -339,7 +375,7 @@
                           <th>#</th>
                           <th>Ученик</th>
                           <th>Уроков</th>
-                          <th>Оплачено</th>
+                          <th>Оплачено (₽ / ₸)</th>
                           <th>Баланс</th>
                       </tr>
                   </thead>
