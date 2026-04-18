@@ -470,7 +470,7 @@ async function deletePayment(id) {
         
         await loadPayments();
         refreshRelatedPages();
-        alert('Платёж удалён');
+        
       } catch (error) {
         console.error('Ошибка удаления:', error);
         alert(`Не удалось удалить: ${error.message}`);

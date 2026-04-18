@@ -117,14 +117,32 @@ export async function openLessonForm({
     const groupSelect = modal.querySelector('#lessonGroupSelect');
 
     // ==================== ПОКАЗ/СКРЫТИЕ СТАТУСА ОПЛАТЫ ====================
-    function togglePaymentStatus() {
-        const paymentGroup = modal.querySelector('#paymentStatusGroup');
-        if (paymentGroup) {
-            paymentGroup.style.display = statusSelect.value === 'completed' ? 'block' : 'none';
+    // ==================== ПОКАЗ/СКРЫТИЕ СТАТУСА ОПЛАТЫ ====================
+const paymentGroup = modal.querySelector('#paymentStatusGroup');
+const paymentSelect = modal.querySelector('#lessonPaymentStatus');
+
+function togglePaymentStatus() {
+    if (statusSelect.value === 'completed') {
+        paymentGroup.style.display = 'block';
+        // Для нового урока — всегда "Оплачен" по умолчанию
+        if (!isEditing && paymentSelect) {
+            paymentSelect.value = 'paid';
         }
+        // Для редактирования — не меняем, оставляем сохранённое значение
+    } else {
+        paymentGroup.style.display = 'none';
     }
-    statusSelect.addEventListener('change', togglePaymentStatus);
+}
+
+statusSelect.addEventListener('change', togglePaymentStatus);
+
+// При открытии формы с initialStatus = 'completed'
+if (initialStatus === 'completed') {
+    statusSelect.value = 'completed';
     togglePaymentStatus();
+} else {
+    togglePaymentStatus();
+}
 
     // ==================== ОБНОВЛЕНИЕ ВРЕМЕНИ ОКОНЧАНИЯ ====================
     function updateEndTime() {
@@ -473,9 +491,9 @@ function renderFormHTML({ lesson, prefillDate, prefillGroupId, prefillStudentId,
         <div class="form-group" id="paymentStatusGroup" style="display: none;">
             <label>Статус оплаты</label>
             <select id="lessonPaymentStatus">
-                <option value="debt" ${lesson?.is_free === false && !lesson?.payment_id ? 'selected' : ''}>⚠️ Долг</option>
-                <option value="free" ${lesson?.is_free ? 'selected' : ''}>🎁 Бесплатный</option>
-                <option value="paid" ${lesson?.payment_id ? 'selected' : ''}>✅ Оплачен (списать 1 урок)</option>
+                <option value="debt">⚠️ Долг</option>
+                <option value="free">🎁 Бесплатный</option>
+                <option value="paid" selected>✅ Оплачен (списать 1 урок)</option> <!-- 👈 selected по умолчанию -->
             </select>
         </div>
     `;

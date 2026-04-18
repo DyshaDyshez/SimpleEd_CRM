@@ -1348,11 +1348,6 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     opacity: 1;
 }
 
-/* Для Firefox */
-input[type="date"] {
-    -moz-appearance: textfield;
-}
-
 /* Поля ввода даты в модальных окнах */
 .modal input[type="date"] {
     width: 100%;
@@ -1384,3 +1379,53 @@ input[type="date"] {
         min-width: auto;
     }
 }
+
+/* Исправление карточки группы */
+.group-card {
+    display: flex;
+    flex-direction: column;
+}
+.group-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+.group-stats span {
+    display: block;
+}
+
+.group-stats .next-lesson {
+    font-weight: 500;
+    color: var(--primary-warm);
+}
+.group-students-preview {
+    border-top: 1px dashed var(--neutral-gray);
+    padding-top: 0.75rem;
+    margin-top: 0.25rem;
+}
+
+/* Модалка посещаемости */
+.attendance-student-item {
+    border-bottom: 1px solid var(--neutral-gray);
+}
+.attendance-student-item:last-child {
+    border-bottom: none;
+}
+.absence-reason-group {
+    padding: 0.5rem 0 0.5rem 2rem;
+}
+.absence-reason-group select,
+.absence-reason-group input {
+    padding: 0.5rem;
+    border: 1px solid var(--neutral-gray);
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+.completed-lesson-item {
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.completed-lesson-item:hover {
+    background: var(--primary-soft);
+}
+

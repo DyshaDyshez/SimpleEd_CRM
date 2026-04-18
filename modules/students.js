@@ -14,12 +14,13 @@ let cachedStudentsData = null;
 export async function initStudentsPage() {
   try {
     groupsList = await fetchGroupsForSelect();
-    if (!isPageCached('students')) {
-      await loadStudentsTable();
-      setPageCached('students');
-    } else {
-      await renderCachedTable();
-    }
+    
+    // 👇 ВСЕГДА сбрасываем кэш при заходе на вкладку
+    resetStudentsCache();
+    
+    // Загружаем таблицу заново
+    await loadStudentsTable();
+    
     renderStudentForm();
     bindAddStudentButton();
   } catch (error) {
