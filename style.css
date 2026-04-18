@@ -1440,7 +1440,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     border: 1px solid #FFCC80 !important;
 }
 .availability-notset {
-    background: #F5F5F5 !important;
+    background: #ffffff !important;
     border: 1px solid #BDBDBD !important;
 }
 
@@ -1456,13 +1456,13 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 .legend-box.available { background: #e8f5e9; border-color: #A5D6A7; }
 .legend-box.dayoff { background: #FFEBEE; border-color: #EF9A9A; }
 .legend-box.vacation { background: #ff776d; border-color: #f8cc8a; }
-.legend-box.notset { background: #F5F5F5; border-color: #BDBDBD; }
+.legend-box.notset { background: #ffffff; border-color: #BDBDBD; }
 
 /* Календарь */
 .availability-available { background: #E8F5E9 !important; border: 1px solid #A5D6A7 !important; }
 .availability-dayoff { background: #FFEBEE !important; border: 1px solid #EF9A9A !important; }
 .availability-vacation { background: #ff776d !important; border: 1px solid #FFCC80 !important; }
-.availability-notset { background: #F5F5F5 !important; border: 1px solid #BDBDBD !important; }
+.availability-notset { background: #ffffff !important; border: 1px solid #BDBDBD !important; }
 
 /* Бейдж статуса */
 .status-badge {
@@ -1474,7 +1474,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 .status-badge.available { background: #E8F5E9; color: #2E7D32; }
 .status-badge.dayoff { background: #FFEBEE; color: #C62828; }
 .status-badge.vacation { background: #ff776d; color: #ffffff; }
-.status-badge.notset { background: #F5F5F5; color: #616161; }
+.status-badge.notset { background: #ffffff; color: #616161; }
 
 /* Анимации для toast-уведомлений */
 @keyframes slideIn {
@@ -1508,4 +1508,23 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     outline: 3px solid var(--primary-warm) !important;
     outline-offset: -2px;
     z-index: 10;
+}
+
+/* Подсветка дней в календаре */
+.fc-day-available {
+    background-color: #E8F5E9 !important;
+}
+.fc-day-off {
+    background-color: #FFEBEE !important;
+}
+.fc-day-vacation {
+    background-color: #ff776d !important;
+}
+
+/* Подсветка слотов в режиме День/Неделя */
+.fc-slot-available {
+    background-color: #E8F5E9 !important;
+}
+.fc-slot-unavailable {
+    background-color: #F5F5F5 !important;
 }

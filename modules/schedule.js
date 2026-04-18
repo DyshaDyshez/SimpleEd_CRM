@@ -11,11 +11,20 @@ let availabilityMap = new Map();
 async function loadAvailabilityForCalendar() {
   const { data, error } = await supabase
     .from('teacher_availability')
-    .select('date, status')
+    .select('date, status, start_time, end_time')
     .eq('teacher_id', getCurrentUser().id);
+    
   if (error) { console.error('Ошибка загрузки доступности:', error); return; }
+  
   availabilityMap.clear();
-  data?.forEach(item => availabilityMap.set(item.date.split('T')[0], item.status));
+  data?.forEach(item => {
+    const dateStr = item.date.split('T')[0];
+    availabilityMap.set(dateStr, {
+      status: item.status,
+      start_time: item.start_time,
+      end_time: item.end_time
+    });
+  });
 }
 
 window.updateMainCalendarAvailability = async function() {
@@ -37,29 +46,89 @@ function initializeCalendar(calendarEl) {
   if (calendar) calendar.destroy();
   const isMobile = window.innerWidth < 768;
   const calendarHeight = isMobile ? 500 : 650;
+  
   calendar = new FullCalendar.Calendar(calendarEl, {
-    timeZone: 'UTC', initialView: 'dayGridMonth', height: calendarHeight, contentHeight: 'auto', expandRows: false,
-    headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' },
-    locale: 'ru', editable: true, selectable: true,
+    timeZone: 'local',
+    initialView: 'dayGridMonth',
+    height: calendarHeight,
+    contentHeight: 'auto',
+    expandRows: false,
+    headerToolbar: {
+      left: 'prev,next today',
+      center: 'title',
+      right: 'dayGridMonth,timeGridWeek,timeGridDay'
+    },
+    locale: 'ru',
+    editable: true,
+    selectable: true,
     events: fetchAndFormatEvents,
     dateClick: handleDateClick,
     eventClick: handleEventClick,
     eventDrop: handleEventDropOrResize,
     eventResize: handleEventDropOrResize,
+    
+    // ✅ Подсветка дней в месяце через классы
     dayCellDidMount: function(info) {
-      const year = info.date.getFullYear();
-      const month = String(info.date.getMonth() + 1).padStart(2, '0');
-      const day = String(info.date.getDate()).padStart(2, '0');
+      const date = info.date;
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
       const dateStr = `${year}-${month}-${day}`;
-      const status = availabilityMap.get(dateStr);
-      info.el.style.backgroundColor = '';
-      if (status === 'available') info.el.style.backgroundColor = '#E8F5E9';
-      else if (status === 'day_off') info.el.style.backgroundColor = '#FFEBEE';
-      else if (status === 'vacation') info.el.style.backgroundColor = '#ff776d';
+      const data = availabilityMap.get(dateStr);
+      
+      // Удаляем старые классы
+      info.el.classList.remove('fc-day-available', 'fc-day-off', 'fc-day-vacation');
+      
+      if (data?.status === 'available') {
+        info.el.classList.add('fc-day-available');
+      } else if (data?.status === 'day_off') {
+        info.el.classList.add('fc-day-off');
+      } else if (data?.status === 'vacation') {
+        info.el.classList.add('fc-day-vacation');
+      }
     },
-    windowResize: function() { calendar.setOption('height', window.innerWidth < 768 ? 500 : 650); },
+    
+    // ✅ Подсветка слотов через классы
+    slotLaneDidMount: function(info) {
+      const date = info.date;
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+      const data = availabilityMap.get(dateStr);
+      
+      // Удаляем старые классы
+      info.el.classList.remove('fc-slot-available', 'fc-slot-unavailable');
+      
+      if (data?.status === 'available' && data.start_time && data.end_time) {
+        const slotTime = date.getHours() * 60 + date.getMinutes();
+        const startParts = data.start_time.split(':');
+        const endParts = data.end_time.split(':');
+        const startMin = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
+        const endMin = parseInt(endParts[0]) * 60 + parseInt(endParts[1]);
+        
+        if (slotTime >= startMin && slotTime < endMin) {
+          info.el.classList.add('fc-slot-available');
+        } else {
+          info.el.classList.add('fc-slot-unavailable');
+        }
+      } else {
+        // Не рабочий день — все слоты недоступны
+        info.el.classList.add('fc-slot-unavailable');
+      }
+    },
+    
+    // Обновляем при смене вида
+    viewDidMount: function() {
+      setTimeout(() => calendar.refetchEvents(), 50);
+    },
+    
+    windowResize: function() { 
+      calendar.setOption('height', window.innerWidth < 768 ? 500 : 650); 
+    },
     loading: (isLoading) => console.log(isLoading ? 'Загрузка...' : 'Готово')
   });
+  
   calendar.render();
 }
 
