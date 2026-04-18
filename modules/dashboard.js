@@ -3,6 +3,10 @@ import supabase from './supabaseClient.js';
 import { getCurrentUser } from './auth.js';
 import { isPageCached, setPageCached } from './cache.js';
 import { openLessonForm } from './lessonForm.js';
+import { openAvailabilityModal } from './availability.js';
+
+document.getElementById('openAvailabilityBtn')?.addEventListener('click', openAvailabilityModal);
+
 
 // --- КЭШ ДАННЫХ ДЛЯ ДАШБОРДА ---
 let cachedStats = null;          // { totalLessons, totalEarningsRUB, totalEarningsKZT }
@@ -302,7 +306,7 @@ export function showConfirmModal(message, onConfirm, onCancel = () => {}) {
       <div class="modal-body" style="padding: 1.5rem 1rem;">
         <p style="font-size: 1.1rem; margin-bottom: 1.5rem;">${message}</p>
         <div class="modal-actions" style="justify-content: center; gap: 1rem;">
-          <button class="btn btn-danger" id="confirmYesBtn">Да, удалить</button>
+          <button class="btn btn-danger" id="confirmYesBtn">Подтвердить</button>
           <button class="btn btn-secondary" id="confirmNoBtn">Отмена</button>
         </div>
       </div>

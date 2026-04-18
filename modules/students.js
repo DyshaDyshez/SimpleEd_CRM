@@ -85,8 +85,17 @@ function renderTableFromData(data) {
   
   tbody.innerHTML = data.map(s => {
     const groupName = s.student_groups?.group_name || '—';
-    const statusClass = s.status === 'active' ? 'badge active' : 'badge inactive';
-    const statusText = s.status === 'active' ? 'Активен' : 'Неактивен';
+    let statusClass, statusText;
+if (s.status === 'active') {
+    statusClass = 'badge active';
+    statusText = 'Активен';
+} else if (s.status === 'vacation') {
+    statusClass = 'badge vacation';
+    statusText = 'Каникулы';
+} else {
+    statusClass = 'badge inactive';
+    statusText = 'Неактивен';
+}
     const balance = s.balance || 0;
     const balanceColor = balance > 0 ? '#2C4C3B' : (balance < 0 ? '#d32f2f' : 'inherit');
     const isLowBalance = balance === 1, isDebt = balance < 0;
@@ -135,7 +144,21 @@ function renderStudentForm(student = null) {
         <div class="form-group"><label>Возраст</label><input type="number" id="childAge" value="${student?.child_age || ''}"></div>
         <div class="form-group"><label>Валюта</label><select id="currency"><option value="RUB" ${student?.currency==='RUB'?'selected':''}>₽ RUB</option><option value="KZT" ${student?.currency==='KZT'?'selected':''}>₸ KZT</option></select></div>
         <div class="form-group"><label>Группа</label><select id="groupId"><option value="">Без группы</option>${groupsList.map(g=>`<option value="${g.id}" ${student?.group_id===g.id?'selected':''}>${g.group_name}</option>`).join('')}</select></div>
-        <div class="form-group"><label>Статус</label><select id="status"><option value="active" ${student?.status==='active'?'selected':''}>Активен</option><option value="inactive" ${student?.status==='inactive'?'selected':''}>Неактивен</option></select></div>
+<div class="form-group">
+  <label>Статус</label>
+  <select id="status">
+    <option value="active" ${student?.status === 'active' ? 'selected' : ''}>Активен</option>
+    <option value="inactive" ${student?.status === 'inactive' ? 'selected' : ''}>Неактивен</option>
+    <option value="vacation" ${student?.status === 'vacation' ? 'selected' : ''}>Каникулы</option>
+  </select>
+</div>
+<div class="form-group vacation-period-group" style="display: ${student?.status === 'vacation' ? 'block' : 'none'};">
+  <label>Период каникул</label>
+  <div style="display: flex; gap: 0.5rem;">
+    <input type="date" id="vacationStart" value="${student?.vacation_start || ''}" placeholder="С">
+    <input type="date" id="vacationEnd" value="${student?.vacation_end || ''}" placeholder="По">
+  </div>
+</div>
       </div>
       <div class="form-group"><label>Заметка</label><textarea id="parentPain" rows="3">${student?.parent_pain||''}</textarea></div>
       <div class="form-actions"><button type="submit" class="btn btn-primary">${isEditing?'Сохранить':'Создать'}</button><button type="button" class="btn btn-secondary" id="cancelStudentForm">Отмена</button></div>
@@ -144,6 +167,11 @@ function renderStudentForm(student = null) {
   `;
   document.getElementById('studentForm').addEventListener('submit', saveStudent);
   document.getElementById('cancelStudentForm').addEventListener('click', () => { container.classList.add('hidden'); clearError('studentFormError'); });
+  const statusSelect = document.getElementById('status');
+const vacationGroup = document.querySelector('.vacation-period-group');
+statusSelect.addEventListener('change', () => {
+  vacationGroup.style.display = statusSelect.value === 'vacation' ? 'block' : 'none';
+});
 }
 
 async function saveStudent(e) {
@@ -152,6 +180,8 @@ async function saveStudent(e) {
   const childName = document.getElementById('childName').value.trim();
   if (!childName) return showError('studentFormError', 'Введите имя');
   const studentData = {
+    vacation_start: document.getElementById('vacationStart')?.value || null,
+    vacation_end: document.getElementById('vacationEnd')?.value || null,
     teacher_id: getCurrentUser().id, child_name: childName,
     parent_name: document.getElementById('parentName').value.trim()||null,
     phone_number: document.getElementById('phoneNumber').value.trim()||null,
@@ -205,7 +235,11 @@ export async function openStudentCard(studentId, activeTab = 'report') {
     <div class="tabs">
       <button class="tab" data-tab="info">Информация</button><button class="tab" data-tab="payments">Оплаты</button><button class="tab" data-tab="lessons">Уроки</button><button class="tab" data-tab="report">Отчёт</button><button class="tab" data-tab="reminder">🔔 Напомнить</button>
     </div>
-    <div class="tab-content" id="studentInfoTab">${renderStudentInfo(student, balance, currencySymbol)}</div>
+    <div class="tab-content" id="studentInfoTab">${renderStudentInfo(student, balance, currencySymbol) }</div>
+    ${student.status === 'vacation' && student.vacation_start && student.vacation_end ? `
+      <p><strong>Каникулы:</strong> ${new Date(student.vacation_start).toLocaleDateString('ru-RU')} – ${new Date(student.vacation_end).toLocaleDateString('ru-RU')}</p>
+    ` : ''}
+
     <div class="tab-content" id="studentPaymentsTab">${await renderPaymentsTab(paymentsData, totalPaidLessons, currencySymbol)}</div>
     <div class="tab-content" id="studentLessonsTab">${renderLessonsTab(lessonsData, usedPaymentsData)}</div>
     <div class="tab-content" id="studentReportTab">${await renderReportTab(student, lessonsData)}</div>

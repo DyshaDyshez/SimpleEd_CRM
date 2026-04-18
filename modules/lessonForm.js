@@ -4,6 +4,7 @@ import { getCurrentUser } from './auth.js';
 import { fetchGroupsForSelect } from './groups.js';
 import { fetchStudentsForSelect } from './students.js';
 import { findAvailablePayment, linkLessonToPayment, unlinkLessonFromPayment, linkGroupLessonToPayments } from './payment-utils.js';
+import { showConfirmModal } from './dashboard.js';
 
 let groupsForLessons = [];
 let studentsForLessons = [];
@@ -19,29 +20,16 @@ async function loadSelectData() {
 }
 
 // ==================== КОНВЕРТЕРЫ ВРЕМЕНИ ====================
-// Правило: Локальное → UTC: ВЫЧИТАЕМ смещение
-//          UTC → Локальное: ПРИБАВЛЯЕМ смещение
-
-/**
- * Конвертирует локальное время (из datetime-local) в UTC для сохранения в базу
- */
 function localToUTC(localDateTimeString) {
     const localDate = new Date(localDateTimeString);
     return new Date(localDate.getTime() - (localDate.getTimezoneOffset() * 60000));
 }
 
-/**
- * Конвертирует UTC-время из базы в локальное для отображения в datetime-local
- */
 function utcToLocal(utcString) {
     const utcDate = new Date(utcString);
     return new Date(utcDate.getTime() + (utcDate.getTimezoneOffset() * 60000));
 }
 
-/**
- * ✅ Форматирует Date в строку для datetime-local input (локальное время)
- * Пример: "2026-04-18T13:00"
- */
 function formatDateTimeLocal(date) {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -52,16 +40,6 @@ function formatDateTimeLocal(date) {
 }
 
 // ==================== ОСНОВНАЯ ФУНКЦИЯ ====================
-/**
- * Открывает модальное окно для создания или редактирования урока
- * @param {Object} options
- * @param {string} options.lessonId - ID урока для редактирования
- * @param {string} options.prefillDate - предзаполненная дата (YYYY-MM-DDTHH:MM)
- * @param {string} options.prefillGroupId - ID группы
- * @param {string} options.prefillStudentId - ID ученика
- * @param {string} options.initialStatus - 'planned' или 'completed'
- * @param {Function} options.onSuccess - колбэк после успешного сохранения
- */
 export async function openLessonForm({
     lessonId = null,
     prefillDate = null,
@@ -75,7 +53,6 @@ export async function openLessonForm({
     const isEditing = !!lessonId;
     let lesson = null;
 
-    // Загружаем данные урока при редактировании
     if (isEditing) {
         const { data, error } = await supabase
             .from('lessons')
@@ -90,7 +67,6 @@ export async function openLessonForm({
         lesson = data;
     }
 
-    // Создаём модальное окно
     const modal = document.createElement('div');
     modal.className = 'modal lesson-form-modal';
     modal.innerHTML = renderFormHTML({
@@ -102,9 +78,46 @@ export async function openLessonForm({
     });
     document.body.appendChild(modal);
 
-    // Получаем элементы формы
     const form = modal.querySelector('#lessonForm');
     const dateInput = modal.querySelector('#lessonDate');
+
+    // ==================== ПРОВЕРКА ВЫХОДНОГО/ОТПУСКА ПРИ ВЫБОРЕ ДАТЫ ====================
+dateInput.addEventListener('change', async () => {
+    const selectedDate = dateInput.value.split('T')[0]; // YYYY-MM-DD
+    
+    // Проверяем статус дня в teacher_availability
+    const { data, error } = await supabase
+        .from('teacher_availability')
+        .select('status')
+        .eq('teacher_id', getCurrentUser().id)
+        .eq('date', selectedDate)
+        .maybeSingle();
+    
+    if (error) {
+        console.error('Ошибка проверки доступности:', error);
+        return;
+    }
+    
+    if (data && (data.status === 'day_off' || data.status === 'vacation')) {
+        const statusText = data.status === 'day_off' ? 'выходной' : 'отпуск';
+        
+        // Показываем кастомное окно подтверждения
+        showConfirmModal(
+            `Вы выбрали дату, которая отмечена как "${statusText}". Вы уверены, что хотите назначить урок на этот день?`,
+            () => {
+                // Продолжаем — ничего не делаем, урок будет создан
+                console.log('Урок назначен на выходной/отпуск');
+            },
+            () => {
+                // Отмена — сбрасываем дату
+                dateInput.value = '';
+                showToast('Выберите другую дату', 'warning');
+            }
+        );
+    }
+});
+
+
     const durationInput = modal.querySelector('#lessonDuration');
     const endDateDisplay = modal.querySelector('#lessonEndDateDisplay');
     const endDateHidden = modal.querySelector('#lessonEndDate');
@@ -115,50 +128,68 @@ export async function openLessonForm({
     const paymentStatusSelect = modal.querySelector('#lessonPaymentStatus');
     const typeSelect = modal.querySelector('#lessonTypeSelect');
     const groupSelect = modal.querySelector('#lessonGroupSelect');
+    const studentSelect = modal.querySelector('#lessonStudentSelect');
 
     // ==================== ПОКАЗ/СКРЫТИЕ СТАТУСА ОПЛАТЫ ====================
-    // ==================== ПОКАЗ/СКРЫТИЕ СТАТУСА ОПЛАТЫ ====================
-const paymentGroup = modal.querySelector('#paymentStatusGroup');
-const paymentSelect = modal.querySelector('#lessonPaymentStatus');
+    const paymentGroup = modal.querySelector('#paymentStatusGroup');
+    const paymentSelect = modal.querySelector('#lessonPaymentStatus');
 
-function togglePaymentStatus() {
-    if (statusSelect.value === 'completed') {
-        paymentGroup.style.display = 'block';
-        // Для нового урока — всегда "Оплачен" по умолчанию
-        if (!isEditing && paymentSelect) {
-            paymentSelect.value = 'paid';
+    function togglePaymentStatus() {
+        if (statusSelect.value === 'completed') {
+            paymentGroup.style.display = 'block';
+            if (!isEditing && paymentSelect) {
+                paymentSelect.value = 'paid';
+            }
+        } else {
+            paymentGroup.style.display = 'none';
         }
-        // Для редактирования — не меняем, оставляем сохранённое значение
-    } else {
-        paymentGroup.style.display = 'none';
     }
-}
 
-statusSelect.addEventListener('change', togglePaymentStatus);
+    statusSelect.addEventListener('change', togglePaymentStatus);
 
-// При открытии формы с initialStatus = 'completed'
-if (initialStatus === 'completed') {
-    statusSelect.value = 'completed';
-    togglePaymentStatus();
-} else {
-    togglePaymentStatus();
-}
+    if (initialStatus === 'completed') {
+        statusSelect.value = 'completed';
+        togglePaymentStatus();
+    } else {
+        togglePaymentStatus();
+    }
+
+    // ==================== ПРОВЕРКА КАНИКУЛ ПРИ ВЫБОРЕ УЧЕНИКА ====================
+    if (studentSelect) {
+        studentSelect.addEventListener('change', async () => {
+            const studentId = studentSelect.value;
+            if (!studentId) return;
+
+            const { data: student } = await supabase
+                .from('students')
+                .select('status, vacation_start, vacation_end')
+                .eq('id', studentId)
+                .single();
+
+            if (student?.status === 'vacation') {
+                const today = new Date().toISOString().split('T')[0];
+                const isOnVacation = student.vacation_start && student.vacation_end &&
+                    today >= student.vacation_start && today <= student.vacation_end;
+
+                if (isOnVacation) {
+                    const period = `${new Date(student.vacation_start).toLocaleDateString('ru-RU')} – ${new Date(student.vacation_end).toLocaleDateString('ru-RU')}`;
+                    showConfirmModal(
+                        `У этого ученика каникулы (${period}). Вы уверены, что хотите назначить урок?`,
+                        () => {}, // продолжить — ничего не делаем
+                        () => { studentSelect.value = ''; } // отмена — сбрасываем выбор
+                    );
+                }
+            }
+        });
+    }
 
     // ==================== ОБНОВЛЕНИЕ ВРЕМЕНИ ОКОНЧАНИЯ ====================
     function updateEndTime() {
         if (!dateInput.value) return;
-        
-        // 1. Берём локальное время из поля ввода
         const startLocal = new Date(dateInput.value);
-        
-        // 2. Прибавляем длительность
         const duration = parseInt(durationInput.value) || 60;
         const endLocal = new Date(startLocal.getTime() + duration * 60000);
-        
-        // 3. ✅ Форматируем как ЛОКАЛЬНОЕ время для input
         endDateDisplay.value = formatDateTimeLocal(endLocal);
-        
-        // 4. Конвертируем в UTC и сохраняем в скрытое поле
         const endUTC = new Date(endLocal.getTime() - (endLocal.getTimezoneOffset() * 60000));
         endDateHidden.value = endUTC.toISOString();
     }
@@ -166,7 +197,6 @@ if (initialStatus === 'completed') {
     dateInput.addEventListener('change', updateEndTime);
     durationInput.addEventListener('input', updateEndTime);
 
-    // Кнопки быстрой длительности
     modal.querySelectorAll('.duration-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             durationInput.value = btn.dataset.minutes;
@@ -176,20 +206,17 @@ if (initialStatus === 'completed') {
         });
     });
 
+    
     // ==================== УСТАНОВКА НАЧАЛЬНЫХ ЗНАЧЕНИЙ ====================
     if (lesson?.lesson_end) {
-        // Редактирование: показываем сохранённое время окончания
         const endLocal = utcToLocal(lesson.lesson_end);
         endDateDisplay.value = formatDateTimeLocal(endLocal);
         endDateHidden.value = lesson.lesson_end;
-        
-        // Вычисляем длительность
         const startUTC = new Date(lesson.lesson_date);
         const endUTC = new Date(lesson.lesson_end);
         const duration = Math.round((endUTC - startUTC) / 60000);
         durationInput.value = duration;
     } else {
-        // Новый урок: рассчитываем окончание
         updateEndTime();
     }
 
@@ -198,8 +225,7 @@ if (initialStatus === 'completed') {
         const groupWrapper = modal.querySelector('#groupSelectWrapper');
         const studentWrapper = modal.querySelector('#studentSelectWrapper');
         const attendanceGroup = modal.querySelector('#attendanceGroup');
-        
-        // Обработчик смены типа занятия
+
         if (typeSelect) {
             typeSelect.addEventListener('change', async () => {
                 if (typeSelect.value === 'group') {
@@ -216,14 +242,11 @@ if (initialStatus === 'completed') {
                 } else {
                     groupWrapper.classList.add('hidden');
                     studentWrapper.classList.remove('hidden');
-                    if (attendanceGroup) {
-                        attendanceGroup.classList.add('hidden');
-                    }
+                    if (attendanceGroup) attendanceGroup.classList.add('hidden');
                 }
             });
         }
-        
-        // Обработчик смены группы (обновление чекбоксов)
+
         if (groupSelect) {
             groupSelect.addEventListener('change', async () => {
                 const attendanceList = modal.querySelector('#attendanceList');
@@ -232,8 +255,7 @@ if (initialStatus === 'completed') {
                 }
             });
         }
-        
-        // Установка начального состояния
+
         if (prefillGroupId) {
             if (typeSelect) typeSelect.value = 'group';
             groupWrapper.classList.remove('hidden');
@@ -247,9 +269,7 @@ if (initialStatus === 'completed') {
             if (typeSelect) typeSelect.value = 'student';
             groupWrapper.classList.add('hidden');
             studentWrapper.classList.remove('hidden');
-            if (attendanceGroup) {
-                attendanceGroup.classList.add('hidden');
-            }
+            if (attendanceGroup) attendanceGroup.classList.add('hidden');
         }
     }
 
@@ -257,7 +277,7 @@ if (initialStatus === 'completed') {
     if (isEditing) {
         const hasGroup = !!lesson?.group_id;
         const hasStudent = !!lesson?.student_id;
-        
+
         if (hasGroup) {
             modal.querySelector('#openGroupFromLesson')?.addEventListener('click', async () => {
                 const { openFullGroupCard } = await import('./groups.js');
@@ -281,20 +301,21 @@ if (initialStatus === 'completed') {
     // ==================== УДАЛЕНИЕ ====================
     if (isEditing) {
         deleteBtn.addEventListener('click', async () => {
-            if (!confirm('Удалить урок безвозвратно?')) return;
-            
-            // Отвязываем от оплаты
-            if (lesson.payment_id) {
-                await unlinkLessonFromPayment(lessonId, lesson.payment_id);
-            }
-            
-            const { error } = await supabase.from('lessons').delete().eq('id', lessonId);
-            if (error) {
-                alert(`Ошибка удаления: ${error.message}`);
-                return;
-            }
-            closeModal();
-            if (onSuccess) onSuccess();
+            showConfirmModal(
+                'Удалить урок безвозвратно?',
+                async () => {
+                    if (lesson.payment_id) {
+                        await unlinkLessonFromPayment(lessonId, lesson.payment_id);
+                    }
+                    const { error } = await supabase.from('lessons').delete().eq('id', lessonId);
+                    if (error) {
+                        alert(`Ошибка удаления: ${error.message}`);
+                        return;
+                    }
+                    closeModal();
+                    if (onSuccess) onSuccess();
+                }
+            );
         });
     }
 
@@ -314,7 +335,6 @@ if (initialStatus === 'completed') {
         const notes = modal.querySelector('#lessonNotes').value.trim() || null;
         const paymentStatus = paymentStatusSelect?.value || 'debt';
 
-        // Конвертируем локальное время в UTC
         const startUTC = localToUTC(lessonDate);
         const endUTC = endDateHidden.value;
 
@@ -328,7 +348,6 @@ if (initialStatus === 'completed') {
             is_free: paymentStatus === 'free'
         };
 
-        // Для нового урока добавляем группу/ученика
         if (!isEditing) {
             if (typeSelect) {
                 if (typeSelect.value === 'group') {
@@ -336,12 +355,11 @@ if (initialStatus === 'completed') {
                     lessonData.student_id = null;
                 } else {
                     lessonData.group_id = null;
-                    lessonData.student_id = modal.querySelector('#lessonStudentSelect')?.value || null;
+                    lessonData.student_id = studentSelect?.value || null;
                 }
             }
         }
 
-        // Сохраняем в базу
         let res;
         if (isEditing) {
             res = await supabase.from('lessons').update(lessonData).eq('id', lessonId);
@@ -357,15 +375,13 @@ if (initialStatus === 'completed') {
         const savedLessonId = isEditing ? lessonId : res.data?.id;
         const studentId = isEditing ? lesson?.student_id : lessonData.student_id;
 
-        // ==================== ОБРАБОТКА ОПЛАТЫ ====================
         if (status === 'completed') {
             const isGroupLesson = typeSelect && typeSelect.value === 'group';
-            
+
             if (isGroupLesson) {
-                // ✅ ГРУППОВОЙ УРОК: списываем только с присутствующих
                 const attendedCheckboxes = modal.querySelectorAll('.attendance-checkbox:checked');
                 const attendedStudentIds = Array.from(attendedCheckboxes).map(cb => cb.value);
-                
+
                 if (attendedStudentIds.length > 0 && lessonData.group_id) {
                     await linkGroupLessonToPayments(
                         lessonData.group_id,
@@ -375,14 +391,12 @@ if (initialStatus === 'completed') {
                     );
                 }
             } else if (studentId) {
-                // ✅ ИНДИВИДУАЛЬНЫЙ УРОК: стандартная логика
                 if (paymentStatus === 'paid') {
                     const availablePayment = await findAvailablePayment(studentId, startUTC.toISOString());
                     if (availablePayment) {
                         await linkLessonToPayment(savedLessonId, availablePayment.id);
                     } else {
-                        // Создаём новую оплату на 1 урок
-                        const {  newPayment } = await supabase
+                        const { data: newPayment } = await supabase
                             .from('payments')
                             .insert({
                                 teacher_id: getCurrentUser().id,
@@ -399,13 +413,12 @@ if (initialStatus === 'completed') {
                         }
                     }
                 } else {
-                    // Если статус не "paid", отвязываем от старой оплаты
                     if (isEditing && lesson?.payment_id) {
                         await unlinkLessonFromPayment(savedLessonId, lesson.payment_id);
                     }
-                    await supabase.from('lessons').update({ 
-                        payment_id: null, 
-                        is_free: paymentStatus === 'free' 
+                    await supabase.from('lessons').update({
+                        payment_id: null,
+                        is_free: paymentStatus === 'free'
                     }).eq('id', savedLessonId);
                 }
             }
@@ -419,12 +432,11 @@ if (initialStatus === 'completed') {
 // ==================== ГЕНЕРАЦИЯ HTML ====================
 function renderFormHTML({ lesson, prefillDate, prefillGroupId, prefillStudentId, initialStatus }) {
     const isEditing = !!lesson;
-    const title = isEditing 
-        ? 'Редактировать урок' 
+    const title = isEditing
+        ? 'Редактировать урок'
         : (initialStatus === 'completed' ? 'Добавить проведённый урок' : 'Назначить урок');
     const submitText = isEditing ? 'Сохранить' : 'Создать';
 
-    // Подготовка даты начала
     let dateValue = '';
     if (lesson?.lesson_date) {
         const localDate = utcToLocal(lesson.lesson_date);
@@ -437,13 +449,11 @@ function renderFormHTML({ lesson, prefillDate, prefillGroupId, prefillStudentId,
     const hasGroup = !!lesson?.group_id;
     const hasStudent = !!lesson?.student_id;
 
-    // Длительность по умолчанию
     let defaultDuration = 60;
     if (lesson?.lesson_end) {
         defaultDuration = Math.round((new Date(lesson.lesson_end) - new Date(lesson.lesson_date)) / 60000);
     }
 
-    // Опции выбора типа занятия (только для новых уроков)
     const typeOptions = !isEditing ? `
         <div class="form-group">
             <label>Тип занятия</label>
@@ -468,7 +478,6 @@ function renderFormHTML({ lesson, prefillDate, prefillGroupId, prefillStudentId,
         </div>
     ` : '';
 
-    // ✅ Чекбоксы посещаемости для групповых уроков
     const attendanceSection = !isEditing ? `
         <div class="form-group hidden" id="attendanceGroup">
             <label>Присутствовали на уроке:</label>
@@ -481,19 +490,17 @@ function renderFormHTML({ lesson, prefillDate, prefillGroupId, prefillStudentId,
         </div>
     ` : '';
 
-    // Кнопка удаления (только для редактирования)
-    const deleteButton = isEditing 
-        ? `<button type="button" class="btn btn-danger" id="deleteLessonBtn">Удалить урок</button>` 
+    const deleteButton = isEditing
+        ? `<button type="button" class="btn btn-danger" id="deleteLessonBtn">Удалить урок</button>`
         : '';
 
-    // Селект статуса оплаты (показывается только для проведённых уроков)
     const paymentStatusOptions = `
         <div class="form-group" id="paymentStatusGroup" style="display: none;">
             <label>Статус оплаты</label>
             <select id="lessonPaymentStatus">
                 <option value="debt">⚠️ Долг</option>
                 <option value="free">🎁 Бесплатный</option>
-                <option value="paid" selected>✅ Оплачен (списать 1 урок)</option> <!-- 👈 selected по умолчанию -->
+                <option value="paid" selected>✅ Оплачен (списать 1 урок)</option>
             </select>
         </div>
     `;
@@ -569,23 +576,20 @@ function renderFormHTML({ lesson, prefillDate, prefillGroupId, prefillStudentId,
 }
 
 // ==================== HELPER: ЧЕКБОКСЫ ПОСЕЩАЕМОСТИ ====================
-/**
- * Рендерит чекбоксы для выбора присутствующих учеников в группе
- */
 async function renderAttendanceCheckboxes(groupId) {
     if (!groupId) return '<p style="color: var(--text-secondary);">Сначала выберите группу</p>';
-    
+
     const { data: students } = await supabase
         .from('students')
         .select('id, child_name')
         .eq('group_id', groupId)
         .eq('teacher_id', getCurrentUser().id)
         .order('child_name');
-    
+
     if (!students?.length) {
         return '<p style="color: var(--text-secondary);">В группе нет учеников</p>';
     }
-    
+
     return students.map(s => `
         <label style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; cursor: pointer; border-radius: 4px; transition: background 0.2s;">
             <input type="checkbox" class="attendance-checkbox" value="${s.id}" checked style="cursor: pointer;">
